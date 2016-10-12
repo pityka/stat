@@ -8,19 +8,38 @@ package object pca {
   def fromData[RX: ORD: ST, CX: ORD: ST](
       data: Frame[RX, CX, Double]
   ): PCA[RX, CX] = {
-    val SVDResult(u, sigma, vt) = data.toMat.svd
+    val SVDResult(u, sigma, vt) = data.demeaned.toMat.svd
+
+    val sigmaPos = sigma.filter(_ > 1E-4)
 
     val proj: Frame[RX, Int, Double] = {
       val projectedM: Mat[Double] = Mat(
-        u.cols.zip(sigma.toSeq).map(x => x._1 * x._2): _*)
-      Frame(projectedM, data.rowIx, index.IndexIntRange(data.colIx.length))
+        u.cols.zip(sigma.toSeq).filter(_._2 > 1E-4).map(x => x._1 * x._2): _*)
+      Frame(projectedM, data.rowIx, index.IndexIntRange(sigmaPos.length))
     }
 
     val load: Frame[CX, Int, Double] =
-      Frame(vt.T, data.colIx, index.IndexIntRange(data.colIx.length))
+      Frame(vt.T.takeCols(0 until sigmaPos.length: _*),
+            data.colIx,
+            index.IndexIntRange(sigmaPos.length))
 
-    PCA(sigma, proj, load)
+    PCA(sigmaPos, proj, Some(load))
 
+  }
+
+  def fromCovariance[RX: ORD: ST](
+      cov: Frame[RX, RX, Double]
+  ) = {
+    val EigenDecompositionSymmetric(u, sigma2) = cov.toMat.eigSymm
+    val sigma = sigma2.map(math.sqrt)
+    val sigmaPos = sigma.filter(_ > 1E-4)
+
+    val proj: Frame[RX, Int, Double] = {
+      val projectedM: Mat[Double] = Mat(
+        u.cols.zip(sigma.toSeq).filter(_._2 > 1E-4).map(x => x._1 * x._2): _*)
+      Frame(projectedM, cov.rowIx, index.IndexIntRange(sigmaPos.length))
+    }
+    PCA(sigmaPos, proj, None)
   }
 
 }
