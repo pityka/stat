@@ -28,9 +28,10 @@ package object pca {
   }
 
   def fromCovariance[RX: ORD: ST](
-      cov: Frame[RX, RX, Double]
+      cov: Frame[RX, RX, Double],
+      max: Int
   ) = {
-    val EigenDecompositionSymmetric(u, sigma2) = cov.toMat.eigSymm
+    val EigenDecompositionSymmetric(u, sigma2) = cov.toMat.eigSymm(max)
     val sigma = sigma2.map(math.sqrt)
     val sigmaPos = sigma.filter(_ > 1E-4)
 

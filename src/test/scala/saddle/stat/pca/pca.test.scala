@@ -20,7 +20,7 @@ class PCASuite extends FunSuite {
     val covM = data.toMat mmt data.toMat
     val cov = Frame(covM, data.rowIx, data.rowIx)
     println(cov)
-    println(fromCovariance(cov))
+    println(fromCovariance(cov, 1))
   }
 
 }
