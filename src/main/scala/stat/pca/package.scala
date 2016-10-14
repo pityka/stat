@@ -6,9 +6,10 @@ import org.saddle.linalg._
 package object pca {
 
   def fromData[RX: ORD: ST, CX: ORD: ST](
-      data: Frame[RX, CX, Double]
+      data: Frame[RX, CX, Double],
+      max: Int
   ): PCA[RX, CX] = {
-    val SVDResult(u, sigma, vt) = data.demeaned.toMat.svd
+    val SVDResult(u, sigma, vt) = data.demeaned.toMat.svd(max)
 
     val sigmaPos = sigma.filter(_ > 1E-4)
 

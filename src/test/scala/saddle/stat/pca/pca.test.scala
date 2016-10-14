@@ -16,7 +16,7 @@ class PCASuite extends FunSuite {
       Index("a", "b", "c")
     ).demeaned
     println(data)
-    println(fromData(data))
+    println(fromData(data, 1))
     val covM = data.toMat mmt data.toMat
     val cov = Frame(covM, data.rowIx, data.rowIx)
     println(cov)
