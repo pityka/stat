@@ -1,12 +1,13 @@
-package stat.pca
+package stat.vis
 
 import org.saddle._
 import org.saddle.linalg._
 import org.scalatest.FunSuite
 import stat._
 import org.nspl.awtrenderer._
+import org.nspl._
 
-class PCASuite extends FunSuite {
+class HeatmapSuite extends FunSuite {
   test("short") {
     val a: Vec[Double] = array.randDouble(50)
     val b: Vec[Double] = a + 2d
@@ -15,15 +16,11 @@ class PCASuite extends FunSuite {
       Mat(a, b, c),
       Index((0 until 50).map(_.toString): _*),
       Index("a", "b", "c")
-    )
+    ).demeaned
+    val (heatmap, pairwise, distmat) =
+      Heatmap.fromColumns(data.T, colormap = LogHeatMapColors())
+    show(group(heatmap, pairwise, TableLayout(2)))
 
-    val covM = data.demeaned.toMat mmt data.demeaned.toMat
-    val cov = Frame(covM, data.rowIx, data.rowIx)
-    assert(
-      fromData(data, 1).eigenvalues
-        .roundTo(4) == fromCovariance(cov, 1).eigenvalues.roundTo(4))
-
-    show(plot(fromData(data, 2), 2))
   }
 
 }

@@ -8,6 +8,9 @@ version := "0.0.2"
 
 libraryDependencies ++= Seq(
   "io.github.pityka" %% "saddle-linalg" % "0.0.9",
+  "io.github.pityka" % "hierarchical-clustering-fork" % "1.0-5",
+  "io.github.pityka" %% "nspl-saddle" % "0.0.11-SNAPSHOT",
+  "io.github.pityka" %% "nspl-awt" % "0.0.11-SNAPSHOT" % "test",
   "org.scalatest" %% "scalatest" % "3.0.0" % "test"
 )
 
