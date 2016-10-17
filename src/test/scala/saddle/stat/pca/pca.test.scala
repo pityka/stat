@@ -23,7 +23,11 @@ class PCASuite extends FunSuite {
       fromData(data, 1).eigenvalues
         .roundTo(4) == fromCovariance(cov, 1).eigenvalues.roundTo(4))
 
-    show(plot(fromData(data, 2), 2))
+    show(
+      plot(
+        fromData(data, 2),
+        2,
+        data.colAt(0).mapValues(x => (x > 0).toString).toSeq.drop(3).toSeries))
   }
 
 }
