@@ -14,13 +14,13 @@ class PCASuite extends FunSuite {
       Mat(a, b, c),
       Index((0 until 50).map(_.toString): _*),
       Index("a", "b", "c")
-    ).demeaned
-    println(data)
-    println(fromData(data, 1))
-    val covM = data.toMat mmt data.toMat
+    )
+
+    val covM = data.demeaned.toMat mmt data.demeaned.toMat
     val cov = Frame(covM, data.rowIx, data.rowIx)
-    println(cov)
-    println(fromCovariance(cov, 1))
+    assert(
+      fromData(data, 1).eigenvalues
+        .roundTo(4) == fromCovariance(cov, 1).eigenvalues.roundTo(4))
   }
 
 }
