@@ -60,8 +60,8 @@ object StudentTest {
 }
 
 trait Prediction {
-  def estimatesV: Vec[Double]
   def estimates: Series[String, Double]
+  def estimatesV: Vec[Double] = estimates.toVec
   def predict(v: Vec[Double]): Double
   def predict[I: ST: Ordering](
       m: Frame[I, String, Double],
