@@ -119,10 +119,11 @@ object LogisticRegression {
     def iteration(max: Int, epsilon: Double): Option[IterationProto] =
       from(vec.zeros(X.numCols))
         .take(max)
-        .find(_ match {
-          case IterationFailed(e) => true
+        .takeWhile(_ match {
+          case IterationFailed(e) => false
           case x: Iteration => x.lprimesum >= epsilon
         })
+        .lastOption
 
     def from(start: Vec[Double]): Stream[IterationProto] = {
 
