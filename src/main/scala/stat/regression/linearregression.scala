@@ -90,9 +90,9 @@ object LinearRegression {
     val XtX = X.innerM
 
     val XtXplusLambdaIInverse =
-      if (shrinkage == 0.0) XtX.invertPD
+      if (shrinkage == 0.0) XtX.invertPD.get
       else
-        (XtX + (mat.diag(penalizationWeights) * shrinkage)).invertPD
+        (XtX + (mat.diag(penalizationWeights) * shrinkage)).invert
 
     val XTmultY = X.tmm(Y)
 

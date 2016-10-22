@@ -20,6 +20,13 @@ class LassoSuite extends FunSpec with Matchers {
 
       val ridgeresult = Ridge.fit(frame, "V22", 0.0, addIntercept = true)
 
+      val sgdresult =
+        stat.sgd.Sgd.optimize(frame,
+                              "V22",
+                              stat.sgd.LinearRegression,
+                              stat.sgd.L2(0d),
+                              stat.sgd.NewtonUpdater)
+
       val ln =
         LinearRegression.linearRegression(frame, "V22", addIntercept = true)
 
@@ -62,11 +69,33 @@ class LassoSuite extends FunSpec with Matchers {
           (math.abs(x - y) < 0.01) should equal(true)
       }
 
+      (glmnet zip sgdresult.estimates.toSeq).foreach {
+        case (x, y) =>
+          (math.abs(x - y) < 0.01) should equal(true)
+      }
+
     }
 
     it("lambda=0.5") {
 
       val lassoresult = LASSO.fit(frame, "V22", 0.5)
+
+      // val sgdresult2 =
+      //   stat.sgd.Sgd.optimize(frame,
+      //                         "V22",
+      //                         stat.sgd.L2(stat.sgd.LinearRegression, 50),
+      //                         standardize = false)
+
+      // println("XXX")
+      // println(sgdresult2)
+      //
+      // val sgdresult =
+      //   stat.sgd.Sgd.optimize(frame,
+      //                         "V22",
+      //                         stat.sgd.L2Prox(stat.sgd.LinearRegression, 50),
+      //                         standardize = false)
+      //
+      // println(sgdresult)
 
       // this is glmnet lambda=0.5/200 because they use different weighting inside the objective function
       val glmnet = Vector(
@@ -133,6 +162,11 @@ class LassoSuite extends FunSpec with Matchers {
           (math.abs(x - y) < 0.01) should equal(true)
       }
 
+      // (glmnet zip sgdresult.estimates.toSeq).foreach {
+      //   case (x, y) =>
+      //     (math.abs(x - y) < 0.01) should equal(true)
+      // }
+
     }
 
     it("lambda=50 against penalized") {
@@ -180,62 +214,57 @@ class LassoSuite extends FunSpec with Matchers {
 
     }
 
-    // it("lambda=50 against penalized L2") {
+    it("lambda=50 against penalized L2") {
 
-    //   val result = Ridge.fit(data2.design, data2.y, 50.0, Vec(
-    //     0d,
-    //     1d,
-    //     1d,
-    //     1d,
-    //     1d,
-    //     1d,
-    //     1d,
-    //     1d,
-    //     1d,
-    //     1d,
-    //     1d,
-    //     1d,
-    //     1d,
-    //     1d,
-    //     1d,
-    //     1d,
-    //     1d,
-    //     1d,
-    //     1d,
-    //     1d,
-    //     1d)).get
+      val result = Ridge.fit(frame, "V22", 50d)
 
-    //   val penalized = IndexedSeq(0.305767252,
-    //     0.973779894,
-    //     0.068934404,
-    //     0.497185503,
-    //     -0.043501453,
-    //     -0.603505652,
-    //     0.517660241,
-    //     0.112092970,
-    //     0.282919550,
-    //     -0.058310925,
-    //     0.010746792,
-    //     0.173727036,
-    //     -0.057283446,
-    //     -0.006831348,
-    //     -0.826476739,
-    //     -0.030049603,
-    //     0.013115346,
-    //     0.017033835,
-    //     0.061459813,
-    //     0.014791350,
-    //     -0.686263503)
+      val sgdresult =
+        stat.sgd.Sgd.optimize(frame,
+                              "V22",
+                              stat.sgd.LinearRegression,
+                              stat.sgd.L2(50d),
+                              stat.sgd.NewtonUpdater,
+                              standardize = false)
 
-    //   (penalized zip result.coefficients.toSeq).foreach {
-    //     case (x, y) =>
-    //       if (!(math.abs(x - y) < 0.02)) {
-    //         println("penalized: " + x + " vs my: " + y)
-    //       }
-    //       (math.abs(x - y) < 0.02) should equal(true)
-    //   }
+      val penalized = IndexedSeq(0.305767252,
+                                 0.973779894,
+                                 0.068934404,
+                                 0.497185503,
+                                 -0.043501453,
+                                 -0.603505652,
+                                 0.517660241,
+                                 0.112092970,
+                                 0.282919550,
+                                 -0.058310925,
+                                 0.010746792,
+                                 0.173727036,
+                                 -0.057283446,
+                                 -0.006831348,
+                                 -0.826476739,
+                                 -0.030049603,
+                                 0.013115346,
+                                 0.017033835,
+                                 0.061459813,
+                                 0.014791350,
+                                 -0.686263503)
 
-    // }
+      (penalized zip result.estimatesV.toSeq).foreach {
+        case (x, y) =>
+          if (!(math.abs(x - y) < 0.01)) {
+            // println("penalized: " + x + " vs my: " + y)
+          }
+          (math.abs(x - y) < 0.1) should equal(true)
+      }
+
+      (penalized zip sgdresult.estimates.toSeq).foreach {
+        case (x, y) =>
+          if (!(math.abs(x - y) < 0.01)) {
+            println("penalized: " + x + " vs my: " + y)
+          }
+          (math.abs(x - y) < 0.01) should equal(true)
+      }
+
+    }
 
     it("scad lambda=50 against ncvreg") {
       val lassoresult =

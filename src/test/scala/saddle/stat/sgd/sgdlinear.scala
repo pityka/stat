@@ -11,11 +11,16 @@ class LMSuite extends FunSuite {
     val data =
       Mat(vec.ones(50), x)
 
-    println(data)
-    println(y)
-
-    val ds = DataSource.fromMat(data, y, 10)
-    val fit = Sgd.optimize(ds, sgd.LinearRegression)
+    val ds = DataSource.fromMat(data, y, 10, Vec(0d, 1d), 42)
+    val fit =
+      Sgd.optimize(ds,
+                   sgd.LinearRegression,
+                   L2(0d),
+                   NewtonUpdater,
+                   1000,
+                   100,
+                   10,
+                   1E-6)
     println(fit)
     // assert(fit.covariate("intercept").get._1.slope.roundTo(10) == 5.0)
     // assert(fit.covariate("x1").get._1.slope == 1.34653453394437)

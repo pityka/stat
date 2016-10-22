@@ -84,7 +84,7 @@ object LogisticRegression {
             if (!negativeDefinite)
               throw new RuntimeException("Hessian not negative definite")
             else {
-              val inv = minusSecondDerivative.invertPD
+              val inv = minusSecondDerivative.invertPD.get
 
               val stderrs = inv.diag.map(math.sqrt)
 
@@ -168,7 +168,7 @@ object LogisticRegression {
         //  XT * w * X
         val minusldoubleprime: Mat[Double] = calculateXTwX(X, w)
 
-        val nextGuess = currentGuess + (minusldoubleprime.invertPD mm lprime)
+        val nextGuess = currentGuess + (minusldoubleprime.invertPD.get mm lprime)
             .col(0)
 
         val lprimesum =
