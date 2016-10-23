@@ -174,7 +174,7 @@ object LASSOImpl {
     *
     * ref: https://web.stanford.edu/~boyd/papers/pdf/prox_algs.pdf page 152
     * ref: https://blogs.princeton.edu/imabandit/2013/04/11/orf523-ista-and-fista/
-    * ref: http://mechroom.technion.ac.il/~becka/papers/71654.pdf eq 1.4
+    * ref: https://web.iem.technion.ac.il/images/user-files/becka/papers/71654.pdf eq 1.4
     * ref for SCAD: http://sites.stat.psu.edu/~rli/research/penlike.pdf
     * ref for SCAD: https://hal.archives-ouvertes.fr/hal-01102810/document !!NOTE! that the scad proximity operator, first case on top of page 4 is wrong there is a typo, absolute value is missing in the divisor. correct is sign(z)*max(0,(|x|-lambda)) OR x*max(0,(1-lambda/|x|))
     */

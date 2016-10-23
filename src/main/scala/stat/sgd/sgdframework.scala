@@ -45,16 +45,6 @@ object DataSource {
               penalizationMask: Vec[Double],
               seed: Int): DataSource = {
 
-    // val (validationIdx, trainingIdx) = scala.util.Random
-    //   .shuffle((0 until x.numRows).toVector)
-    //   .splitAt(validationSize)
-    //
-    // val validation =
-    //   Batch(x.takeRows(validationIdx: _*), y.apply(validationIdx: _*))
-    //
-    // val (trainingX, trainingY) =
-    //   (x.takeRows(trainingIdx: _*), y.app(trainingIdx: _*))
-
     val iter = new Iterator[Iterator[Batch]] {
 
       def hasNext = true
@@ -82,117 +72,35 @@ object DataSource {
   }
 }
 
-trait ObjectiveFunction {
-  def jacobi(b: Vec[Double], batch: Batch): Vec[Double]
-  def hessian(p: Vec[Double], batch: Batch): Mat[Double]
-}
-
-trait Penalty {
-
-  def proximal(b: Vec[Double], batch: Batch): Vec[Double]
-
-  def jacobi(b: Vec[Double], batch: Batch): Vec[Double]
-  def hessian(p: Vec[Double], batch: Batch): Mat[Double]
-}
-
-object LinearRegression extends ObjectiveFunction {
-  def jacobi(b: Vec[Double], batch: Batch): Vec[Double] = {
-    val y = batch.y
-    val X = batch.x
-    val yMinusXb = Mat(y) - (X mm Mat(b))
-    (yMinusXb tmm X).row(0)
-
-  }
-
-  def hessian(p: Vec[Double], batch: Batch): Mat[Double] = {
-    batch.x.innerM * (-1)
-  }
-}
-
-case class L2(lambda: Double) extends Penalty {
-  def jacobi(b: Vec[Double], batch: Batch): Vec[Double] =
-    b * batch.penalizationMask * lambda
-
-  def hessian(p: Vec[Double], batch: Batch): Mat[Double] =
-    mat.diag(batch.penalizationMask * lambda)
-
-  def proximal(w: Vec[Double], batch: Batch): Vec[Double] =
-    w.zipMap(batch.penalizationMask)((old, pw) => old / (1.0 + pw * lambda))
-}
-
-//     def jacobi(b: Vec[Double], batch: Batch): Vec[Double] = {
-// // proximal gradient descent, fix this redundancy
-//
-//
-//       (hessian(b, batch) mm Mat(
-//         b - prox(b - (hessian(b, batch).invert mm o.jacobi(b, batch)).col(0))))
-//         .col(0)
-//     }
-case class L1(lambda: Double) extends Penalty {
-
-  def proximal(w: Vec[Double], batch: Batch) =
-    w.zipMap(batch.penalizationMask)((old, pw) =>
-      math.signum(old) * math.max(0.0, math.abs(old) - lambda * pw))
-
-  def jacobi(b: Vec[Double], batch: Batch): Vec[Double] =
-    b.zipMap(batch.penalizationMask)((b, p) =>
-      (if (b == 0) 0d else if (b < 0) -1 * lambda * p else lambda * p))
-
-  def hessian(p: Vec[Double], batch: Batch): Mat[Double] =
-    mat.zeros(p.length, p.length)
-
-}
-
 case class SgdEstimate(estimates: Vec[Double])
 
-case class Iteration(point: Vec[Double], lprimesum: Double)
+trait ItState {
+  def point: Vec[Double]
+  def lprimesum: Double
+}
 
-trait Updater {
+trait Updater[I <: ItState] {
   def next(x: Vec[Double],
            b: Batch,
            obj: ObjectiveFunction,
-           pen: Penalty): Iteration
-}
-
-object NewtonUpdater extends Updater {
-  def next(b: Vec[Double],
-           batch: Batch,
-           obj: ObjectiveFunction,
-           pen: Penalty) = {
-
-    val j = obj.jacobi(b, batch) - pen.jacobi(b, batch)
-    val h = obj.hessian(b, batch) - pen.hessian(b, batch)
-
-    val hinv =
-      (h * (-1)).invertPD
-        .map(_ * (-1))
-        .getOrElse(h.invertPD.getOrElse(h.invert))
-
-    val next = b - (hinv mm j).col(0)
-
-    val jacobisum =
-      (obj.jacobi(next, batch) - pen.jacobi(next, batch)).map(math.abs).sum
-
-    val r = Iteration(next, jacobisum)
-    println(r)
-    r
-  }
+           pen: Penalty,
+           last: Option[I]): I
 }
 
 object Sgd {
 
-  def optimize[RX: ST: ORD](
+  def optimize[RX: ST: ORD, I <: ItState](
       f: Frame[RX, String, Double],
       yKey: String,
       obj: ObjectiveFunction,
       pen: Penalty,
-      upd: Updater,
+      upd: Updater[I],
       missingMode: MissingMode = DropSample,
       addIntercept: Boolean = true,
       maxIterations: Int = 10000,
       minIterations: Int = 100,
       convergedAverage: Int = 50,
-      epsilon: Double = 1E-8,
+      epsilon: Double = 1E-6,
       seed: Int = 42,
       standardize: Boolean = true
   ): SgdEstimate =
@@ -211,12 +119,12 @@ object Sgd {
              convergedAverage,
              epsilon)
 
-  def optimize(
+  def optimize[I <: ItState](
       x: Mat[Double],
       y: Vec[Double],
       obj: ObjectiveFunction,
       pen: Penalty,
-      upd: Updater,
+      upd: Updater[I],
       penalizationMask: Vec[Double],
       maxIterations: Int,
       minIterations: Int,
@@ -235,11 +143,11 @@ object Sgd {
       convergedAverage,
       epsilon)
 
-  def optimize(
+  def optimize[I <: ItState](
       dataSource: DataSource,
       obj: ObjectiveFunction,
       pen: Penalty,
-      updater: Updater,
+      updater: Updater[I],
       maxIterations: Int,
       minIterations: Int,
       convergedAverage: Int,
@@ -264,12 +172,13 @@ object Sgd {
 
     }
 
-    def from(start: Vec[Double]): Stream[Iteration] = {
+    def from(start: Vec[Double]): Stream[I] = {
 
-      def loop(start: Iteration): Stream[Iteration] =
-        start #:: loop(updater.next(start.point, data.next, obj, pen))
+      def loop(start: I): Stream[I] =
+        start #:: loop(
+          updater.next(start.point, data.next, obj, pen, Some(start)))
 
-      val f1 = updater.next(start, data.next, obj, pen)
+      val f1 = updater.next(start, data.next, obj, pen, None)
       loop(f1)
     }
 

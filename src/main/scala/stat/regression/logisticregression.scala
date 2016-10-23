@@ -121,7 +121,7 @@ object LogisticRegression {
         .take(max)
         .takeWhile(_ match {
           case IterationFailed(e) => false
-          case x: Iteration => x.lprimesum >= epsilon
+          case x: Iteration => x.lprimesum <= epsilon
         })
         .lastOption
 

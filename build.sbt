@@ -7,7 +7,7 @@ organization := "io.github.pityka"
 version := "0.0.3"
 
 libraryDependencies ++= Seq(
-  "io.github.pityka" %% "saddle-linalg" % "0.0.10",
+  "io.github.pityka" %% "saddle-linalg" % "0.0.11",
   "io.github.pityka" % "hierarchical-clustering-fork" % "1.0-5",
   "io.github.pityka" %% "nspl-saddle" % "0.0.11",
   "io.github.pityka" %% "nspl-awt" % "0.0.11" % "test",

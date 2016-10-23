@@ -65,11 +65,17 @@ class LogRegSuite extends FunSuite {
 
     val fit = LogisticRegression.logisticRegression(data, "y")
     assert(
-      fit.covariate("intercept").get._1.slope.roundTo(10) == -0.0148874586)
+      fit.covariate("intercept").get._1.slope.roundTo(5) == -0.0148874586
+        .roundTo(5))
     assert(
-      fit.covariate("intercept").get._1.sd.roundTo(10) == 0.28434823530000003)
-    assert(fit.covariate("x1").get._1.slope == -0.2756813856547127)
-    assert(fit.covariate("x1").get._1.sd == 0.4952865249726828)
-    assert(fit.logLikelihood.L == -34.501741139860144)
+      fit.covariate("intercept").get._1.sd.roundTo(5) == 0.28434823530000003
+        .roundTo(5))
+    assert(
+      fit.covariate("x1").get._1.slope.roundTo(5) == -0.2756813856547127
+        .roundTo(5))
+    assert(
+      fit.covariate("x1").get._1.sd.roundTo(5) == 0.4952865249726828.roundTo(
+        5))
+    assert(fit.logLikelihood.L.roundTo(5) == -34.501741139860144.roundTo(5))
   }
 }

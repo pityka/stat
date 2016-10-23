@@ -14,6 +14,8 @@ class LMSuite extends FunSuite {
     )
     val fit = LinearRegression.linearRegression(data, "y")
     assert(fit.covariate("intercept").get._1.slope.roundTo(10) == 5.0)
-    assert(fit.covariate("x1").get._1.slope == 1.34653453394437)
+    assert(
+      fit.covariate("x1").get._1.slope.roundTo(7) == 1.34653453394437.roundTo(
+        7))
   }
 }
