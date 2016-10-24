@@ -7,7 +7,8 @@ import stat.regression.{MissingMode, DropSample, createDesignMatrix}
 case class Batch(x: Mat[Double], y: Vec[Double], penalizationMask: Vec[Double])
 case class DataSource(
     training: Iterator[Iterator[Batch]],
-    numCols: Int
+    numCols: Int,
+    batchPerEpoch: Int
 )
 
 object DataSource {
@@ -68,7 +69,7 @@ object DataSource {
         }
       }
     }
-    DataSource(iter, trainingX.numCols)
+    DataSource(iter, trainingX.numCols, trainingX.numRows / batchSize + 1)
   }
 }
 
@@ -97,8 +98,8 @@ object Sgd {
       upd: Updater[I],
       missingMode: MissingMode = DropSample,
       addIntercept: Boolean = true,
-      maxIterations: Int = 10000,
-      minIterations: Int = 100,
+      maxIterations: Int = 100000,
+      minEpochs: Int = 2,
       convergedAverage: Int = 50,
       epsilon: Double = 1E-6,
       seed: Int = 42,
@@ -115,7 +116,7 @@ object Sgd {
              pen,
              upd,
              maxIterations,
-             minIterations,
+             minEpochs,
              convergedAverage,
              epsilon)
 
@@ -127,7 +128,7 @@ object Sgd {
       upd: Updater[I],
       penalizationMask: Vec[Double],
       maxIterations: Int,
-      minIterations: Int,
+      minEpochs: Int,
       convergedAverage: Int,
       epsilon: Double,
       seed: Int
@@ -139,7 +140,7 @@ object Sgd {
       pen,
       upd,
       maxIterations,
-      minIterations,
+      minEpochs,
       convergedAverage,
       epsilon)
 
@@ -149,7 +150,7 @@ object Sgd {
       pen: Penalty,
       updater: Updater[I],
       maxIterations: Int,
-      minIterations: Int,
+      minEpochs: Int,
       convergedAverage: Int,
       epsilon: Double
   ): SgdEstimate = {
@@ -185,7 +186,7 @@ object Sgd {
     SgdEstimate(
       iteration(start,
                 maxIterations,
-                minIterations,
+                minEpochs * dataSource.batchPerEpoch,
                 convergedAverage,
                 epsilon))
 

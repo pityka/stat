@@ -52,7 +52,7 @@ class LRSuite extends FunSuite {
 
     val fitFista = Sgd.optimize(ds,
                                 sgd.LogisticRegression,
-                                L1(1d),
+                                L1(10d),
                                 FistaUpdater,
                                 300,
                                 10,

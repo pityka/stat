@@ -44,40 +44,8 @@ object FistaUpdater extends Updater[FistaItState] {
       objectiveUnpenalized(y) + (gradient(y) dot (x - y)) + (1.0 / (2.0 * a)) * ((x - y) dot (x - y)) + penaltyFunction(
         x)
 
-    // def lineSearch(stepSize: Double, w: Vec[Double]): (Double, Vec[Double]) = {
-    //   var l = stepSize
-    //
-    //   val gradientw = gradient(w)
-    //
-    //   var z = step(l, w, gradientw)
-    //
-    //   val objw = objective(w)
-    //
-    //   def lineSearchStop(z: Vec[Double]) = objective(z) > quad(z, w, l)
-    //   //   penalty match {
-    //   //   case L1 =>
-    //   //     (objectiveUnpenalized(z)._1 > upperBound(z,
-    //   //                                              w,
-    //   //                                              l,
-    //   //                                              objectiveUnpenalizedw,
-    //   //                                              gradientw))
-    //   //   case SCAD | L2 | ElasticNet => objective(z) > objectivePenalizedW
-    //   // }
-    //
-    //   while (lineSearchStop(z)) {
-    //     l = l * 0.5
-    //     z = step(l, w, gradientw)
-    //   }
-    //
-    //   (l, z)
-    // }
-
     val t = last.map(_.t).getOrElse(1.0)
     val y = last.map(_.y).getOrElse(x)
-
-    // val stepSize = last.map(_.stepSize).getOrElse(1.0)
-
-    // val (nstepSize, xnext) = lineSearch(stepSize, y)
 
     /* 1 / Lipschitz constant */
     val stepSize = {
@@ -90,9 +58,6 @@ object FistaUpdater extends Updater[FistaItState] {
     val tplus1 = (1 + math.sqrt(1 + 4 * t * t)) * 0.5
 
     val ynext = xnext + (xnext - x) * ((t - 1.0) / tplus1)
-
-    // val jacobisum =
-    // (obj.jacobi(xnext, batch) - pen.jacobi(xnext, batch)).map(math.abs).sum
 
     /* Empirical gradient to test convergence */
     val absError = math.abs(objective(xnext) - objective(x))
