@@ -55,23 +55,14 @@ object LogisticRegression extends ObjectiveFunction {
   def hessian(b: Vec[Double], batch: Batch): Mat[Double] = {
     val pi = getPi(b, batch)
     val w: Vec[Double] = pi * (pi * (-1) + 1.0)
-    batch.x tmm Mat(batch.x.cols.zip(w.toSeq).map {
-      case (col, w) => col * w * (-1)
-    }: _*)
+    batch.x.mDiagFromLeft(w * (-1)) tmm batch.x
   }
 
   def minusHessianLargestEigenValue(p: Vec[Double], batch: Batch): Double = {
     val pi = getPi(p, batch)
     val w: Vec[Double] = (pi * (pi * (-1) + 1.0)).map(x => math.sqrt(x))
     val wx =
-      if (batch.x.numRows < batch.x.numCols)
-        Mat(batch.x.rows.zip(w.toSeq).map {
-          case (col, w) => col * w * (-1)
-        }: _*)
-      else
-        Mat(batch.x.cols.zip(w.toSeq).map {
-          case (col, w) => col * w * (-1)
-        }: _*)
+      batch.x.mDiagFromLeft(w * (-1))
 
     val s = wx.singularValues(1).raw(0)
     s * s
