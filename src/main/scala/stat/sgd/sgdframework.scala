@@ -76,7 +76,7 @@ case class SgdEstimate(estimates: Vec[Double])
 
 trait ItState {
   def point: Vec[Double]
-  def lprimesum: Double
+  def convergence: Double
 }
 
 trait Updater[I <: ItState] {
@@ -165,7 +165,7 @@ object Sgd {
       val t = from(start)
         .take(max)
         .drop(min)
-        .filter(_.lprimesum < epsilon)
+        .filter(_.convergence < epsilon)
         .take(tail)
 
       t.map(_.point).reduce(_ + _) / t.size

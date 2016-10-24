@@ -3,7 +3,7 @@ package stat.sgd
 import org.saddle._
 import org.saddle.linalg._
 
-case class Iteration(point: Vec[Double], lprimesum: Double) extends ItState
+case class Iteration(point: Vec[Double], convergence: Double) extends ItState
 
 object NewtonUpdater extends Updater[Iteration] {
   def next(b: Vec[Double],

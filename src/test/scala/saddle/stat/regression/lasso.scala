@@ -329,6 +329,16 @@ class LassoSuite extends FunSpec with Matchers {
       val lassoresult =
         PenalizedWithSCAD.fit(frame, "V22", 10)
 
+      // val sgdresultFista =
+      //   stat.sgd.Sgd.optimize(frame,
+      //                         "V22",
+      //                         stat.sgd.LinearRegression,
+      //                         stat.sgd.SCAD(50d),
+      //                         stat.sgd.FistaUpdater,
+      //                         standardize = false)
+
+      // println(sgdresultFista)
+
       val ncvreg = Seq(
         0.1308801426,
         1.3796539851,
@@ -362,6 +372,14 @@ class LassoSuite extends FunSpec with Matchers {
           }
           (math.abs(x - y) < 0.2) should equal(true)
       }
+
+      // (ncvreg zip sgdresultFista.estimates.toSeq).foreach {
+      //   case (x, y) =>
+      //     if (!(math.abs(x - y) < 0.2)) {
+      //       println("penalized: " + x + " vs sgd: " + y)
+      //     }
+      //     (math.abs(x - y) < 0.2) should equal(true)
+      // }
 
       // (glmnet zip lassoresult.coefficients.toSeq).foreach {
       //   case (x, y) =>

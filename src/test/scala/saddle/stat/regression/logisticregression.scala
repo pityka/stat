@@ -6,7 +6,8 @@ import stat._
 
 class LogRegSuite extends FunSuite {
   test("1") {
-    val y: Vec[Double] = array.linspace(-1d, 1d)
+    val y: Vec[Double] =
+      array.linspace(-1d, 1d).map(v => if (v > 0.0) 1.0 else 0.0)
     val x: Vec[Double] = Vec(-0.042225672555113176,
                              -0.4454131082238157,
                              -0.8621926316533379,
@@ -64,6 +65,18 @@ class LogRegSuite extends FunSuite {
     )
 
     val fit = LogisticRegression.logisticRegression(data, "y")
+
+    val fit1 =
+      sgd.Sgd.optimize(data,
+                       "y",
+                       sgd.LogisticRegression,
+                       sgd.L2(0d),
+                       sgd.NewtonUpdater)
+
+    assert(
+      fit1.estimates.roundTo(5) == Vec(-0.0148874586, -0.2756813856547127)
+        .roundTo(5))
+
     assert(
       fit.covariate("intercept").get._1.slope.roundTo(5) == -0.0148874586
         .roundTo(5))

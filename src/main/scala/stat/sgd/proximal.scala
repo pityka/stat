@@ -5,7 +5,7 @@ import org.saddle.linalg._
 import scala.util._
 
 case class FistaItState(point: Vec[Double],
-                        lprimesum: Double,
+                        convergence: Double,
                         t: Double,
                         y: Vec[Double])
     extends ItState
@@ -81,8 +81,7 @@ object FistaUpdater extends Updater[FistaItState] {
 
     /* 1 / Lipschitz constant */
     val stepSize = {
-      val e = obj.hessianLargestEigenValue(x, batch)
-
+      val e = obj.minusHessianLargestEigenValue(x, batch) * 2
       1 / e
     }
 
@@ -96,11 +95,9 @@ object FistaUpdater extends Updater[FistaItState] {
     // (obj.jacobi(xnext, batch) - pen.jacobi(xnext, batch)).map(math.abs).sum
 
     /* Empirical gradient to test convergence */
-    val objDiff = objective(xnext) - objective(x)
-    val empiricalJacobi = (xnext - x).map(d => objDiff / d)
-    val jacobisum = empiricalJacobi.map(math.abs).sum
+    val absError = math.abs(objective(xnext) - objective(x))
 
-    FistaItState(xnext, jacobisum, tplus1, ynext)
+    FistaItState(xnext, absError, tplus1, ynext)
 
   }
 }
