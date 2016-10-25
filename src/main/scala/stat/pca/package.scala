@@ -13,7 +13,9 @@ package object pca {
       data: Frame[RX, CX, Double],
       max: Int
   ): PCA[RX, CX] = {
-    val SVDResult(u, sigma, vt) = data.demeaned.toMat.svd(max)
+    val demeaned = data.demeaned.toMat
+    val nonZero = demeaned.singularValues(max).countif(_ > 1E-4)
+    val SVDResult(u, sigma, vt) = data.demeaned.toMat.svd(nonZero)
 
     val sigmaPos = sigma.filter(_ > 1E-4)
 
@@ -36,7 +38,9 @@ package object pca {
       cov: Frame[RX, RX, Double],
       max: Int
   ) = {
-    val EigenDecompositionSymmetric(u, sigma2) = cov.toMat.eigSymm(max)
+    val covM = cov.reindexCol(cov.rowIx).toMat
+    val nonZero = covM.eigenValuesSymm(max).countif(_ > 1E-4)
+    val EigenDecompositionSymmetric(u, sigma2) = covM.eigSymm(nonZero)
     val sigma = sigma2.map(math.sqrt)
     val sigmaPos = sigma.filter(_ > 1E-4)
 
