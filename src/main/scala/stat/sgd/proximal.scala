@@ -59,10 +59,9 @@ object FistaUpdater extends Updater[FistaItState] {
 
     val ynext = xnext + (xnext - x) * ((t - 1.0) / tplus1)
 
-    /* Empirical gradient to test convergence */
-    val absError = math.abs(objective(xnext) - objective(x))
+    val relError = (objective(xnext) - objective(x)) / objective(x)
 
-    FistaItState(xnext, absError, tplus1, ynext)
+    FistaItState(xnext, math.abs(relError), tplus1, ynext)
 
   }
 }
