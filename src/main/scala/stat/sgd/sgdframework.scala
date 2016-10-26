@@ -2,7 +2,13 @@ package stat.sgd
 
 import org.saddle._
 import org.saddle.linalg._
-import stat.regression.{MissingMode, DropSample, createDesignMatrix}
+import stat.regression.{
+  MissingMode,
+  DropSample,
+  createDesignMatrix,
+  Prediction,
+  NamedPrediction
+}
 
 case class Batch(x: Mat[Double], y: Vec[Double], penalizationMask: Vec[Double])
 case class DataSource(
@@ -73,8 +79,6 @@ object DataSource {
   }
 }
 
-case class SgdEstimate(estimates: Vec[Double])
-
 trait ItState {
   def point: Vec[Double]
   def convergence: Double
@@ -86,6 +90,24 @@ trait Updater[I <: ItState] {
            obj: ObjectiveFunction,
            pen: Penalty,
            last: Option[I]): I
+}
+
+case class SgdResult(
+    estimatesV: Vec[Double],
+    model: ObjectiveFunction
+) extends Prediction {
+  def predict(v: Vec[Double]) = model.predict(estimatesV, v)
+  def predict(m: Mat[Double]) = model.predict(estimatesV, m)
+}
+
+case class NamedSgdResult(
+    raw: SgdResult,
+    names: Index[String]
+) extends NamedPrediction
+    with Prediction {
+  def estimatesV = raw.estimatesV
+  def predict(v: Vec[Double]) = raw.predict(v)
+  def predict(m: Mat[Double]) = raw.predict(m)
 }
 
 object Sgd {
@@ -104,21 +126,24 @@ object Sgd {
       epsilon: Double = 1E-6,
       seed: Int = 42,
       standardize: Boolean = true
-  ): SgdEstimate =
-    optimize(DataSource.fromFrame(f,
-                                  yKey,
-                                  missingMode,
-                                  addIntercept,
-                                  math.min(256, f.numRows),
-                                  seed,
-                                  standardize),
-             obj,
-             pen,
-             upd,
-             maxIterations,
-             minEpochs,
-             convergedAverage,
-             epsilon)
+  ): NamedPrediction = {
+    val result = optimize(DataSource.fromFrame(f,
+                                               yKey,
+                                               missingMode,
+                                               addIntercept,
+                                               math.min(256, f.numRows),
+                                               seed,
+                                               standardize),
+                          obj,
+                          pen,
+                          upd,
+                          maxIterations,
+                          minEpochs,
+                          convergedAverage,
+                          epsilon)
+
+    NamedSgdResult(result, f.colIx.toSeq.filter(_ != yKey).toIndex)
+  }
 
   def optimize[I <: ItState](
       x: Mat[Double],
@@ -132,7 +157,7 @@ object Sgd {
       convergedAverage: Int,
       epsilon: Double,
       seed: Int
-  ): SgdEstimate =
+  ): SgdResult =
     optimize(
       DataSource
         .fromMat(x, y, math.min(256, x.numRows), penalizationMask, seed),
@@ -153,7 +178,7 @@ object Sgd {
       minEpochs: Int,
       convergedAverage: Int,
       epsilon: Double
-  ): SgdEstimate = {
+  ): SgdResult = {
 
     val data = dataSource.training.flatten
     val start = vec.zeros(dataSource.numCols)
@@ -183,12 +208,12 @@ object Sgd {
       loop(f1)
     }
 
-    SgdEstimate(
-      iteration(start,
-                maxIterations,
-                minEpochs * dataSource.batchPerEpoch,
-                convergedAverage,
-                epsilon))
+    SgdResult(iteration(start,
+                        maxIterations,
+                        minEpochs * dataSource.batchPerEpoch,
+                        convergedAverage,
+                        epsilon),
+              obj)
 
   }
 

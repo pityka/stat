@@ -60,25 +60,23 @@ object StudentTest {
 }
 
 trait Prediction {
-  def estimates: Series[String, Double]
-  def estimatesV: Vec[Double] = estimates.toVec
+  def estimatesV: Vec[Double]
   def predict(v: Vec[Double]): Double
-  def predict[I: ST: Ordering](
-      m: Frame[I, String, Double],
-      parameterNames: Index[String]): Series[I, Double] = {
-
-    val m2 = addIntercept(m).reindexCol(parameterNames)
-    Series(m.toRowSeq.map(s => s._1 -> predict(s._2.toVec)): _*)
-  }
-
-  def predictResiduals[I: ST: ORD](
-      m: Frame[I, String, Double],
-      y: Series[I, Double],
-      parameterNames: Index[String]): Series[I, Double] =
-    y - predict(m, parameterNames)
+  def predict(m: Mat[Double]): Vec[Double]
 }
 
-trait RegressionResult extends Prediction {
+trait NamedPrediction extends Prediction {
+  def names: Index[String]
+  def estimates: Series[String, Double] = Series(estimatesV, names)
+  def predict[I: ST: Ordering](m: Frame[I, String, Double],
+                               intercept: Boolean): Series[I, Double] = {
+
+    val m2 = (if (intercept) addIntercept(m) else m).reindexCol(names)
+    Series(predict(m2.toMat), m2.rowIx)
+  }
+}
+
+trait RegressionResult extends NamedPrediction with Prediction {
   def covariate(s: String): Option[(Effect, TestResult)]
   def covariates: Map[String, (Effect, TestResult)]
   def intercept: (Effect, TestResult)

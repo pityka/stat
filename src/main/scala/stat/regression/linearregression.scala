@@ -24,7 +24,9 @@ case class NamedLinearRegressionResult[I](
 ) extends RegressionResult {
   import raw._
 
-  def estimates = Series(raw.betas, parameterNames)
+  def estimatesV = raw.betas
+
+  def names = parameterNames
 
   def logLikelihood = raw.logLikelihood
 
@@ -34,6 +36,8 @@ case class NamedLinearRegressionResult[I](
 
   def predict(v: Vec[Double]): Double =
     v dot betas
+
+  def predict(m: Mat[Double]): Vec[Double] = (m mm betas).col(0)
 
   def covariates = parameterNames.toSeq.map(x => x -> covariate(x).get).toMap
 

@@ -17,7 +17,9 @@ case class NamedLogisticRegressionResult[I](
 ) extends RegressionResult {
   import raw._
 
-  def estimates = Series(raw.betas, parameterNames)
+  def estimatesV = raw.betas
+
+  def names = parameterNames
 
   def logLikelihood = raw.logLikelihood
 
@@ -25,8 +27,13 @@ case class NamedLogisticRegressionResult[I](
 
   val lambda = 0d
 
-  def predict(v: Vec[Double]): Double =
-    v dot betas
+  def predict(v: Vec[Double]): Double = {
+    val e = math.exp(v dot betas)
+    e / (1 + e)
+  }
+
+  def predict(m: Mat[Double]): Vec[Double] =
+    (m mm betas).col(0).map(x => math.exp(x)).map(x => x / (1 + x))
 
   def covariates = parameterNames.toSeq.map(x => x -> covariate(x).get).toMap
 
@@ -46,8 +53,7 @@ case class NamedLogisticRegressionResult[I](
 object LogisticRegression {
   def logisticRegression(
       designMatrix: Mat[Double],
-      outComeCounts: Vec[Int],
-      aggregatedBinLengths: Vec[Int]
+      outcome: Vec[Double]
   ): LogisticRegressionResult = {
 
     sealed trait IterationProto
@@ -55,13 +61,11 @@ object LogisticRegression {
     case class Iteration(point: Vec[Double], lprimesum: Double)
         extends IterationProto
 
-    assert(aggregatedBinLengths.length == outComeCounts.length,
-           "outComeCounts.size != aggregatedBinLengths.size")
-    assert(aggregatedBinLengths.length == designMatrix.numRows)
+    assert(outcome.length == designMatrix.numRows)
     assert(designMatrix.numRows > 0 && designMatrix.numCols > 0,
            "designmatrix is empty")
 
-    val numSamples = aggregatedBinLengths.length
+    val numSamples = outcome.length
     val X = designMatrix
 
     def estimate(maxIter: Int, epsilon: Double) = {
@@ -74,7 +78,7 @@ object LogisticRegression {
             // -1*Hessian, equal to Fisher's information
             val minusSecondDerivative = {
               val estimatedOdds = odds(estimates)
-              val w: Vec[Double] = aggregatedBinLengths * estimatedOdds * (estimatedOdds * (-1) + 1.0)
+              val w: Vec[Double] = estimatedOdds * (estimatedOdds * (-1) + 1.0)
 
               calculateXTwX(X, w)
             }
@@ -91,22 +95,19 @@ object LogisticRegression {
               val logLikelihood = {
                 var i = 0
                 var l = 0.0
-                while (i < aggregatedBinLengths.length) {
+                while (i < outcome.length) {
                   val lc = linCombWithDesign(estimates, i)
-                  l += (outComeCounts.raw(i) * lc) - (aggregatedBinLengths.raw(
-                    i) * math.log(1 + math.exp(lc)))
+                  l += (outcome.raw(i) * lc) - math.log(1 + math.exp(lc))
                   i += 1
                 }
 
-                LogLikelihood(L = l,
-                              df = estimates.length,
-                              aggregatedBinLengths.sum)
+                LogLikelihood(L = l, df = estimates.length, outcome.length)
               }
 
               LogisticRegressionResult(estimates,
                                        stderrs,
                                        logLikelihood,
-                                       aggregatedBinLengths.sum)
+                                       outcome.length)
 
             }
           }
@@ -149,15 +150,14 @@ object LogisticRegression {
 
         // n_i * PI_i , the expected number of positive outcomes at the current guess
         // in the paper this is mu
-        // aggregatedBinLengths * currentOdds
-        val expected: Vec[Double] = currentOdds * aggregatedBinLengths
+        val expected: Vec[Double] = currentOdds
 
         // y - expected
         // outComeCounts - expected
-        val diff: Vec[Double] = outComeCounts - expected
+        val diff: Vec[Double] = outcome - expected
 
         // This w is the diagonal of a diagonalmatrix
-        val w: Vec[Double] = aggregatedBinLengths * currentOdds * (currentOdds * (-1) + 1.0)
+        val w: Vec[Double] = currentOdds * (currentOdds * (-1) + 1.0)
 
         // first derivative of the log likelihood function, evaluated at the current guess
         // Xt * diff
@@ -206,8 +206,8 @@ object LogisticRegression {
     val data2 = createDesignMatrix(data, missingMode, addIntercept)
 
     val raw = logisticRegression(
-      X = data2.filterIx(_ != yKey).toMat,
-      y = data2.firstCol(yKey).toVec.map(v => v > 0.0)
+      data2.filterIx(_ != yKey).toMat,
+      data2.firstCol(yKey).toVec.map(v => if (v > 0.0) 1.0 else 0.0)
     )
     NamedLogisticRegressionResult(data2.colIx.toSeq.filter(_ != yKey).toIndex,
                                   raw,
@@ -215,78 +215,77 @@ object LogisticRegression {
 
   }
 
-  private def prepareGroupings(includedCovariatesMat: Mat[Double]) = {
+  // private def prepareGroupings(includedCovariatesMat: Mat[Double]) = {
+  //
+  //   // This saves the hashcode and prevents boxing of doubles.
+  //   case class MemoizedHashCode(v: Vec[Double]) {
+  //     override val hashCode = {
+  //       var s = 1
+  //       var i = 0
+  //       val n = v.length
+  //       while (i < n) {
+  //         s = 31 * s + com.google.common.primitives.Doubles.hashCode(v.raw(i))
+  //         i += 1
+  //       }
+  //       s
+  //     }
+  //   }
+  //
+  //   import scala.collection.mutable.ListBuffer
+  //
+  //   def groupFrameByRow3(in: Mat[Double]): Seq[Set[Int]] = {
+  //     val mmap = collection.mutable
+  //       .AnyRefMap[MemoizedHashCode, collection.mutable.Set[Int]]()
+  //     val n = in.numRows
+  //     (0 until in.numRows).foreach { idx =>
+  //       val row = MemoizedHashCode(in.row(idx)) //.contents.toList
+  //       mmap.get(row) match {
+  //         case None => {
+  //           val bs = collection.mutable.Set[Int](idx)
+  //           mmap.update(row, bs)
+  //         }
+  //         case Some(x) => {
+  //           x += idx
+  //         }
+  //       }
+  //     }
+  //     mmap.map(x => x._2.toSet).toSeq
+  //   }
+  //
+  //   groupFrameByRow3(includedCovariatesMat).map(_.toIndexedSeq)
+  // }
 
-    // This saves the hashcode and prevents boxing of doubles.
-    case class MemoizedHashCode(v: Vec[Double]) {
-      override val hashCode = {
-        var s = 1
-        var i = 0
-        val n = v.length
-        while (i < n) {
-          s = 31 * s + com.google.common.primitives.Doubles.hashCode(v.raw(i))
-          i += 1
-        }
-        s
-      }
-    }
-
-    import scala.collection.mutable.ListBuffer
-
-    def groupFrameByRow3(in: Mat[Double]): Seq[Set[Int]] = {
-      val mmap = collection.mutable
-        .AnyRefMap[MemoizedHashCode, collection.mutable.Set[Int]]()
-      val n = in.numRows
-      (0 until in.numRows).foreach { idx =>
-        val row = MemoizedHashCode(in.row(idx)) //.contents.toList
-        mmap.get(row) match {
-          case None => {
-            val bs = collection.mutable.Set[Int](idx)
-            mmap.update(row, bs)
-          }
-          case Some(x) => {
-            x += idx
-          }
-        }
-      }
-      mmap.map(x => x._2.toSet).toSeq
-    }
-
-    groupFrameByRow3(includedCovariatesMat).map(_.toIndexedSeq)
-  }
-
-  def logisticRegression(
-      X: Mat[Double],
-      y: Vec[Boolean]
-  ): LogisticRegressionResult = {
-
-    val groups = prepareGroupings(X)
-
-    logisticRegressionWithGrouping(X, y, groups)
-
-  }
-
-  private def logisticRegressionWithGrouping[I](
-      includedCovariatesMat: Mat[Double],
-      filteredOutcomes: Vec[Boolean],
-      groups: Seq[Seq[Int]]
-  ): LogisticRegressionResult = {
-
-    val designMatrix: Mat[Double] =
-      includedCovariatesMat.row(groups.map(_.head): _*)
-
-    val aggregatedBinLengths: Vec[Int] = Vec(groups.map(x => x.size): _*)
-
-    val outComeCounts: Vec[Int] = Vec(groups.map(group =>
-      filteredOutcomes(group: _*).filter(_ == true).length): _*)
-
-    if (designMatrix.numCols == 0 && designMatrix.numRows == 0)
-      throw new RuntimeException("Design matrix is empty")
-    else {
-
-      logisticRegression(designMatrix, outComeCounts, aggregatedBinLengths)
-
-    }
-  }
+  // def logisticRegression(
+  //     X: Mat[Double],
+  //     y: Vec[Boolean]
+  // ): LogisticRegressionResult = {
+  //
+  //   val groups = prepareGroupings(X)
+  //
+  //   logisticRegressionWithGrouping(X, y, groups)
+  //
+  // }
+  //
+  // private def logisticRegressionWithGrouping[I](
+  //     includedCovariatesMat: Mat[Double],
+  //     filteredOutcomes: Vec[Boolean],
+  // ): LogisticRegressionResult = {
+  //
+  //   val designMatrix: Mat[Double] =
+  //     includedCovariatesMat.row(groups.map(_.head): _*)
+  //
+  //   val aggregatedBinLengths: Vec[Int] = Vec(groups.map(x => x.size): _*)
+  //
+  //   val outComeCounts: Vec[Int] = Vec(groups.map(group =>
+  //     filteredOutcomes(group: _*).filter(_ == true).length): _*)
+  //
+  //   if (designMatrix.numCols == 0 && designMatrix.numRows == 0)
+  //     throw new RuntimeException("Design matrix is empty")
+  //   else {
+  //
+  //     logisticRegression(designMatrix, outComeCounts, aggregatedBinLengths)
+  //
+  //   }
+  // }
 
 }

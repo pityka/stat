@@ -8,6 +8,9 @@ trait ObjectiveFunction {
   def hessian(p: Vec[Double], batch: Batch): Mat[Double]
   def minusHessianLargestEigenValue(p: Vec[Double], batch: Batch): Double
   def apply(b: Vec[Double], batch: Batch): Double
+
+  def predict(estimates: Vec[Double], data: Vec[Double]): Double
+  def predict(estimates: Vec[Double], data: Mat[Double]): Vec[Double]
 }
 
 object LinearRegression extends ObjectiveFunction {
@@ -31,6 +34,10 @@ object LinearRegression extends ObjectiveFunction {
     val s = batch.x.singularValues(1).raw(0)
     s * s
   }
+  def predict(estimates: Vec[Double], data: Vec[Double]): Double =
+    estimates dot data
+  def predict(estimates: Vec[Double], data: Mat[Double]): Vec[Double] =
+    (data mm estimates).col(0)
 }
 
 object LogisticRegression extends ObjectiveFunction {
@@ -67,4 +74,11 @@ object LogisticRegression extends ObjectiveFunction {
     val s = wx.singularValues(1).raw(0)
     s * s
   }
+
+  def predict(estimates: Vec[Double], data: Vec[Double]): Double = {
+    val e = math.exp(estimates dot data)
+    e / (1 + e)
+  }
+  def predict(estimates: Vec[Double], data: Mat[Double]): Vec[Double] =
+    (data mm estimates).col(0).map(math.exp).map(x => x / (1 + x))
 }

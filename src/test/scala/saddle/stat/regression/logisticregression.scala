@@ -74,21 +74,19 @@ class LogRegSuite extends FunSuite {
                        sgd.NewtonUpdater)
 
     assert(
-      fit1.estimates.roundTo(5) == Vec(-0.0148874586, -0.2756813856547127)
+      fit1.estimatesV.roundTo(5) == Vec(-0.0148874586, -0.2756813856547127)
         .roundTo(5))
 
     assert(
       fit.covariate("intercept").get._1.slope.roundTo(5) == -0.0148874586
         .roundTo(5))
     assert(
-      fit.covariate("intercept").get._1.sd.roundTo(5) == 0.28434823530000003
+      fit.covariate("intercept").get._1.sd.roundTo(5) == 0.28408100490251437
         .roundTo(5))
     assert(
       fit.covariate("x1").get._1.slope.roundTo(5) == -0.2756813856547127
         .roundTo(5))
-    assert(
-      fit.covariate("x1").get._1.sd.roundTo(5) == 0.4952865249726828.roundTo(
-        5))
+    assert(fit.covariate("x1").get._1.sd.roundTo(5) == 0.49353.roundTo(5))
     assert(fit.logLikelihood.L.roundTo(5) == -34.501741139860144.roundTo(5))
   }
 }

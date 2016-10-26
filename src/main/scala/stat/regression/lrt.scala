@@ -23,9 +23,9 @@ object LikelihoodRatioTest {
 
     val stat = 2 * (alternative - nullModel) / scale
 
-    val p = synchronized {
+    val p =
       jdistlib.ChiSquare.cumulative(stat, df, false, false)
-    }
+    
     ChiSqTestResult(stat, p, df)
   }
 
