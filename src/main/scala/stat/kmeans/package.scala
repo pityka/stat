@@ -9,34 +9,47 @@ import org.nspl.data._
 
 package object kmeans {
 
-  def plot(data: Mat[Double], res: KMeansResult, max: Int) = {
+  type SVec = Series[Int, Double]
+  type SMat = IndexedSeq[SVec]
+
+  def plot(data: SMat, res: KMeansResult, max: Int) = {
 
     val projections = 0 until max combinations (2) map { g =>
       val c1 = g(0)
       val c2 = g(1)
+      val col1 = data.map(s => s.first(c1).getOrElse(0d)).toVec
+      val col2 = data.map(s => s.first(c2).getOrElse(0d)).toVec
       xyplot(
-        Mat((data.col(c1, c2).cols :+ (res.clusters.map(_.toDouble))): _*) -> point(
+        Mat(col1, col2, res.clusters.map(_.toDouble)) -> point(
           labelText = false,
-          color = DiscreteColors(res.means.numRows)))()
+          color = DiscreteColors(res.means.size)))()
     }
 
     sequence(projections.toList, TableLayout(4))
 
   }
 
-  def euclid(v1: Vec[Double], v2: Vec[Double]) = {
-    val d = v1 - v2
+  def euclid(v1: SVec, v2: SVec) = {
+    val (j1, j2) = v1.align(v2, index.OuterJoin)
+    val d = (j1.fillNA(_ => 0d) - j2.fillNA(_ => 0d)).toVec
     math.sqrt(d dot d)
   }
 
-  def assign(v: Vec[Double], means: Mat[Double]): Int = {
-    0 until means.numRows minBy { i =>
-      euclid(v, means.row(i))
+  def assign(v: SVec, means: SMat): Int = {
+    0 until means.size minBy { i =>
+      euclid(v, means(i))
     }
   }
 
-  def assignAll(data: Mat[Double], means: Mat[Double]): Seq[Vec[Int]] =
-    data.rows.zipWithIndex.map {
+  def colmeans(data: SMat): SVec = {
+    val keys = data.flatMap(_.index.toSeq).distinct
+    keys.map { k =>
+      k -> data.map(s => s.first(k).getOrElse(0d)).toVec.mean
+    }.toSeries
+  }
+
+  def assignAll(data: SMat, means: SMat): Seq[Vec[Int]] =
+    data.zipWithIndex.map {
       case (row, idx) =>
         val membership = assign(row, means)
         membership -> idx
@@ -46,19 +59,18 @@ package object kmeans {
       .sortBy(_._1)
       .map(_._2)
 
-  def update(data: Mat[Double], memberships: Seq[Vec[Int]]): Mat[Double] = {
-    Mat(memberships.map { idx =>
-      Vec(data.takeRows(idx: Array[Int]).cols.map(c => c.sum / c.length): _*)
-    }: _*).T
+  def update(data: SMat, memberships: Seq[Vec[Int]]): SMat = {
+    memberships.map { idx =>
+      colmeans(idx.map(i => data(i)).toSeq.toIndexedSeq)
+    }.toIndexedSeq
   }
 
-  def step(data: Mat[Double], means: Mat[Double]) = {
+  def step(data: SMat, means: SMat) = {
     val assignment = assignAll(data, means)
     (update(data, assignment), assignment)
-
   }
 
-  def apply(data: Mat[Double], init: Mat[Double], it: Int): KMeansResult = {
+  def apply(data: SMat, init: SMat, it: Int): KMeansResult = {
     val (next, assignments) = step(data, init)
 
     if (it == 0)
@@ -70,5 +82,10 @@ package object kmeans {
                    next)
     else apply(data, next, it - 1)
   }
+
+  def apply(data: Mat[Double], init: Mat[Double], it: Int): KMeansResult =
+    apply(data.rows.map(x => Series(x)), init.rows.map(x => Series(x)), it)
+
+  def matToSparse(data: Mat[Double]) = data.rows.map(x => Series(x))
 
 }

@@ -11,7 +11,7 @@ class KMeansSuite extends FunSuite {
     val data = mat.randn(10000, 2)
     val res = kmeans.apply(data, mat.randn(18, 2), 10)
 
-    show(plot(data, res, 2))
+    show(plot(matToSparse(data), res, 2))
 
   }
 
