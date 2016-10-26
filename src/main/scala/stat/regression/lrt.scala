@@ -25,7 +25,7 @@ object LikelihoodRatioTest {
 
     val p =
       jdistlib.ChiSquare.cumulative(stat, df, false, false)
-    
+
     ChiSqTestResult(stat, p, df)
   }
 

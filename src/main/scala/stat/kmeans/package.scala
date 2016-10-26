@@ -24,9 +24,14 @@ package object kmeans {
 
   }
 
+  def euclid(v1: Vec[Double], v2: Vec[Double]) = {
+    val d = v1 - v2
+    math.sqrt(d dot d)
+  }
+
   def assign(v: Vec[Double], means: Mat[Double]): Int = {
     0 until means.numRows minBy { i =>
-      v dot means.row(i)
+      euclid(v, means.row(i))
     }
   }
 
