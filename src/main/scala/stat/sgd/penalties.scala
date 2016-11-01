@@ -8,6 +8,7 @@ trait Penalty {
   def jacobi(b: Vec[Double], batch: Batch): Vec[Double]
   def hessian(p: Vec[Double], batch: Batch): Mat[Double]
   def apply(b: Vec[Double], batch: Batch): Double
+  def withHyperParameter(h: Double): Penalty
 }
 
 case class L2(lambda: Double) extends Penalty {
@@ -23,6 +24,8 @@ case class L2(lambda: Double) extends Penalty {
 
   def apply(b: Vec[Double], batch: Batch): Double =
     (b.map(x => x * x) * batch.penalizationMask * 0.5 * lambda).sum
+
+  def withHyperParameter(h: Double) = L2(h)
 }
 
 case class L1(lambda: Double) extends Penalty {
@@ -39,5 +42,7 @@ case class L1(lambda: Double) extends Penalty {
 
   def apply(b: Vec[Double], batch: Batch): Double =
     (b.map(math.abs) * batch.penalizationMask * 0.5 * lambda).sum
+
+  def withHyperParameter(h: Double) = L1(h)
 
 }

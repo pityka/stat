@@ -7,7 +7,9 @@ import scala.util._
 case class FistaItState(point: Vec[Double],
                         convergence: Double,
                         t: Double,
-                        y: Vec[Double])
+                        y: Vec[Double],
+                        stepSize: Double,
+                        obj: Double)
     extends ItState
 
 /**
@@ -18,7 +20,7 @@ case class FistaItState(point: Vec[Double],
 object FistaUpdater extends Updater[FistaItState] {
   def next(x: Vec[Double],
            batch: Batch,
-           obj: ObjectiveFunction,
+           obj: ObjectiveFunction[_],
            pen: Penalty,
            last: Option[FistaItState]): FistaItState = {
 
@@ -48,7 +50,7 @@ object FistaUpdater extends Updater[FistaItState] {
     val y = last.map(_.y).getOrElse(x)
 
     /* 1 / Lipschitz constant */
-    val stepSize = {
+    val stepSize = last.map(_.stepSize).getOrElse {
       val e = obj.minusHessianLargestEigenValue(x, batch) * 2
       1 / e
     }
@@ -59,9 +61,13 @@ object FistaUpdater extends Updater[FistaItState] {
 
     val ynext = xnext + (xnext - x) * ((t - 1.0) / tplus1)
 
-    val relError = (objective(xnext) - objective(x)) / objective(x)
+    val objCurrent = last.map(_.obj).getOrElse(objective(x))
 
-    FistaItState(xnext, math.abs(relError), tplus1, ynext)
+    val objNext = objective(xnext)
+
+    val relError = (objNext - objCurrent) / objCurrent
+
+    FistaItState(xnext, math.abs(relError), tplus1, ynext, stepSize, objNext)
 
   }
 }

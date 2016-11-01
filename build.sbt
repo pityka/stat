@@ -7,11 +7,12 @@ organization := "io.github.pityka"
 version := "0.0.5"
 
 libraryDependencies ++= Seq(
-  "io.github.pityka" %% "saddle-linalg" % "0.0.12",
+  "io.github.pityka" %% "saddle-linalg" % "0.0.13",
   "io.github.pityka" % "hierarchical-clustering-fork" % "1.0-5",
   "io.github.pityka" %% "nspl-saddle" % "0.0.12",
   "io.github.pityka" %% "nspl-awt" % "0.0.12" % "test",
-  "org.scalatest" %% "scalatest" % "3.0.0" % "test"
+  "org.scalatest" %% "scalatest" % "3.0.0" % "test",
+  "biz.enef" %% "slogging" % "0.5.1"
 )
 
 reformatOnCompileSettings
