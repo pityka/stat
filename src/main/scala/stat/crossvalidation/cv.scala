@@ -5,18 +5,34 @@ import scala.util.Random
 
 case class EvalR[E](obj: Double, misc: E)
 
-trait Train[EvalRes] {
-  def train(idx: Vec[Int], hyper: Double): Eval[EvalRes]
+trait Train2[EvalRes] {
+  def train(idx: Vec[Int]): Eval[EvalRes]
+}
+
+trait Train[EvalRes, Hyper] {
+  def train(idx: Vec[Int], hyper: Hyper): Eval[EvalRes]
+}
+
+trait HyperParameterSearch[H] {
+  def apply[E](
+      idx: Vec[Int],
+      t: Train[E, H],
+      split: CVSplit,
+      min: Double,
+      max: Double,
+      n: Int
+  ): H
 }
 
 object Train {
-  def nestGridSearch[E](t: Train[E],
-                        split: CVSplit,
-                        min: Double,
-                        max: Double,
-                        n: Int) = new Train[E] {
-    def train(idx: Vec[Int], hyper: Double): Eval[E] = {
-      val opt = gridSearch1D(
+  def nestedSearch[E, H](t: Train[E, H],
+                         split: CVSplit,
+                         min: Double,
+                         max: Double,
+                         n: Int,
+                         search: HyperParameterSearch[H]) = new Train2[E] {
+    def train(idx: Vec[Int]): Eval[E] = {
+      val opt = search(
         idx,
         t,
         split,

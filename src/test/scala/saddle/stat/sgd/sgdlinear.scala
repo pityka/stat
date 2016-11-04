@@ -34,6 +34,7 @@ class LMRandomSuite extends FunSuite {
       FistaUpdater,
       0.9,
       stat.crossvalidation.KFold(5, 42, 1),
+      stat.crossvalidation.RandomSearch(() => rng.nextDouble),
       hMin = -6d,
       hMax = 15d,
       hN = 10,
@@ -57,11 +58,9 @@ class LRRandomSuite extends FunSuite {
   slogging.LoggerConfig.level = slogging.LogLevel.DEBUG
   test("random ") {
     val samples = 1000
-    val nCol = 5
-    val columns = nCol * samples
+    val columns = 10000
     val design = mat.randn(samples, columns)
-    val betas: Vec[Double] = vec.randn(20) concat vec.zeros(
-        nCol * samples - 20)
+    val betas: Vec[Double] = vec.randn(20) concat vec.zeros(columns - 20)
     val rng = new scala.util.Random(23)
     val ly = LogisticRegression
         .generate(betas, design, () => rng.nextDouble) + vec.randn(samples) * 0
@@ -80,18 +79,19 @@ class LRRandomSuite extends FunSuite {
       design,
       ly,
       sgd.LogisticRegression,
-      L1(1.0),
+      ElasticNet(1.0, 1.0),
       FistaUpdater,
-      0.9,
+      0.8,
       stat.crossvalidation.KFold(5, 42, 1),
-      hMin = -6d,
+      stat.crossvalidation.RandomSearch2D(() => rng.nextDouble),
+      hMin = -2d,
       hMax = 15d,
       hN = 20,
       penalizationMask = vec.ones(columns),
-      maxIterations = 3000,
+      maxIterations = 5000,
       minEpochs = 1,
       convergedAverage = 2,
-      epsilon = 1E-2,
+      epsilon = 1E-3,
       42
     )
 
@@ -100,8 +100,6 @@ class LRRandomSuite extends FunSuite {
       .predict(fitFista._2, design)
       .map(p => if (p > 0.5) 1.0 else 0.0)
     println(lypredicted)
-    println(lypredicted.zipMap(ly)(_ == _).map(x => if (x) 1d else 0d).mean)
-    println(stat.crossvalidation.rSquared(lypredicted, ly))
 
   }
 }

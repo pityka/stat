@@ -9,7 +9,8 @@ case class FistaItState(point: Vec[Double],
                         t: Double,
                         y: Vec[Double],
                         stepSize: Double,
-                        obj: Double)
+                        obj: Double,
+                        minStepSize: Double)
     extends ItState
 
 /**
@@ -21,7 +22,7 @@ object FistaUpdater extends Updater[FistaItState] {
   def next(x: Vec[Double],
            batch: Batch,
            obj: ObjectiveFunction[_],
-           pen: Penalty,
+           pen: Penalty[_],
            last: Option[FistaItState]): FistaItState = {
 
     def shrink(w: Vec[Double], alpha1: Double) =
@@ -48,12 +49,15 @@ object FistaUpdater extends Updater[FistaItState] {
 
     val t = last.map(_.t).getOrElse(1.0)
     val y = last.map(_.y).getOrElse(x)
+    val objCurrent = last.map(_.obj).getOrElse(objective(x))
 
     /* 1 / Lipschitz constant */
-    val stepSize = last.map(_.stepSize).getOrElse {
+    val minStepSize = last.map(_.minStepSize).getOrElse {
       val e = obj.minusHessianLargestEigenValue(x, batch) * 2
       1 / e
     }
+
+    val stepSize = last.map(_.stepSize).getOrElse(minStepSize * 512)
 
     val xnext = step(stepSize, y, gradient(y))
 
@@ -61,13 +65,26 @@ object FistaUpdater extends Updater[FistaItState] {
 
     val ynext = xnext + (xnext - x) * ((t - 1.0) / tplus1)
 
-    val objCurrent = last.map(_.obj).getOrElse(objective(x))
-
     val objNext = objective(xnext)
 
     val relError = (objNext - objCurrent) / objCurrent
 
-    FistaItState(xnext, math.abs(relError), tplus1, ynext, stepSize, objNext)
+    if (objCurrent < objNext && stepSize != minStepSize)
+      FistaItState(x,
+                   math.abs(relError),
+                   t,
+                   y,
+                   math.max(stepSize * 0.5, minStepSize),
+                   objCurrent,
+                   minStepSize)
+    else
+      FistaItState(xnext,
+                   math.abs(relError),
+                   tplus1,
+                   ynext,
+                   stepSize,
+                   objNext,
+                   minStepSize)
 
   }
 }

@@ -25,7 +25,7 @@ trait Updater[I <: ItState] {
   def next(x: Vec[Double],
            b: Batch,
            obj: ObjectiveFunction[_],
-           pen: Penalty,
+           pen: Penalty[_],
            last: Option[I]): I
 }
 
@@ -59,7 +59,7 @@ object Sgd extends StrictLogging {
       f: Frame[RX, String, Double],
       yKey: String,
       obj: ObjectiveFunction[E],
-      pen: Penalty,
+      pen: Penalty[_],
       upd: Updater[I],
       missingMode: MissingMode = DropSample,
       addIntercept: Boolean = true,
@@ -92,7 +92,7 @@ object Sgd extends StrictLogging {
       x: Mat[Double],
       y: Vec[Double],
       obj: ObjectiveFunction[E],
-      pen: Penalty,
+      pen: Penalty[_],
       upd: Updater[I],
       penalizationMask: Vec[Double],
       maxIterations: Int,
@@ -118,7 +118,7 @@ object Sgd extends StrictLogging {
   def optimize[I <: ItState, E](
       dataSource: DataSource,
       obj: ObjectiveFunction[E],
-      pen: Penalty,
+      pen: Penalty[_],
       updater: Updater[I],
       maxIterations: Int,
       minEpochs: Int,
@@ -134,13 +134,16 @@ object Sgd extends StrictLogging {
                   min: Int,
                   tail: Int,
                   epsilon: Double): Vec[Double] = {
-      val t = from(start)
+      val t = from(start).zipWithIndex
         .take(max)
         .drop(min)
-        .filter(_.convergence < epsilon)
+        .filter(_._1.convergence < epsilon)
         .take(tail)
+        .toVector
 
-      t.map(_.point).reduce(_ + _) / t.size
+      logger.debug("Converged after {} iterations", t.last._2 + 1)
+
+      t.map(_._1.point).reduce(_ + _) / t.size
 
     }
 

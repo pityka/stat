@@ -7,11 +7,11 @@ import slogging.StrictLogging
 
 package object crossvalidation extends StrictLogging {
 
-  def trainOnTestEvalOnHoldout[E](
+  def trainOnTestEvalOnHoldout[E, H](
       idx: Vec[Int],
-      trainer: Train[E],
+      trainer: Train[E, H],
       cvmode: CVSplit,
-      hyper: Double
+      hyper: H
   ): Iterator[(EvalR[E], Vec[Double])] = {
     cvmode.generate(idx).map {
       case (test, holdout) =>
@@ -20,28 +20,17 @@ package object crossvalidation extends StrictLogging {
         (fit.eval(holdout), fit.estimatesV)
     }
   }
-
-  def gridSearch1D[E](
+  def trainOnTestEvalOnHoldout[E](
       idx: Vec[Int],
-      trainer: Train[E],
-      split: CVSplit,
-      min: Double,
-      max: Double,
-      n: Int
-  ): Double = {
-    val candidates = array.linspace(min, max, n).map(x => math.exp(x))
-
-    val optim = candidates.maxBy { c =>
-      val r = trainOnTestEvalOnHoldout(idx, trainer, split, c).toSeq.toVec
-        .map(_._1.obj)
-        .mean
-      logger.debug("gridSearch1D {} : {}", c, r)
-      r
+      trainer: Train2[E],
+      cvmode: CVSplit
+  ): Iterator[(EvalR[E], Vec[Double])] = {
+    cvmode.generate(idx).map {
+      case (test, holdout) =>
+        logger.debug("train: {} , eval: {} ", test.length, holdout.length)
+        val fit = trainer.train(test)
+        (fit.eval(holdout), fit.estimatesV)
     }
-
-    logger.debug("gridSearch1D. Optim: {}", optim)
-
-    optim
   }
 
   def rSquared(predicted: Vec[Double], y: Vec[Double]) = {

@@ -6,6 +6,9 @@ import stat._
 import org.saddle.io._
 
 class LogisticSuite extends FunSpec with Matchers {
+  slogging.LoggerConfig.factory = slogging.PrintLoggerFactory()
+  slogging.LoggerConfig.level = slogging.LogLevel.DEBUG
+
   describe("lasso alone") {
 
     val frame = CsvParser
@@ -31,7 +34,7 @@ class LogisticSuite extends FunSpec with Matchers {
                               stat.sgd.NewtonUpdater)
 
       assert(
-        sgdresult.estimatesV.roundTo(5) == Vec(-13.456195494927975,
+        sgdresult.estimatesV.roundTo(3) == Vec(-13.456195494927975,
                                                5.54536621449407,
                                                -0.7310881106659288,
                                                7.797408274673465,
@@ -51,7 +54,7 @@ class LogisticSuite extends FunSpec with Matchers {
                                                -0.2777165325992358,
                                                3.5125250794521206,
                                                0.9484255220382978,
-                                               -4.400415060828859).roundTo(5))
+                                               -4.400415060828859).roundTo(3))
 
       val sgdresultfista =
         stat.sgd.Sgd.optimize(frame2,
@@ -61,28 +64,28 @@ class LogisticSuite extends FunSpec with Matchers {
                               stat.sgd.FistaUpdater)
 
       assert(
-        sgdresultfista.estimatesV.roundTo(5) == Vec(
-          -13.813192243260982,
-          5.712627615770042,
-          -0.7718681701999867,
-          7.989582626316036,
-          -0.04404037029568946,
-          -2.8491663318897786,
-          6.505497043128322,
-          1.2036907839149278,
-          1.1761860182255015,
-          0.2925057562172423,
-          1.4257741553640995,
-          3.0613099232429732,
-          -0.012101105250586159,
-          2.3498636661784342,
-          -3.5092438814761016,
-          -0.6750912381755376,
-          1.5966366322564307,
-          -0.2591454344568539,
-          3.6598032732212302,
-          0.963015026464971,
-          -4.510022344777664).roundTo(5))
+        sgdresultfista.estimatesV.roundTo(3) == Vec(
+          -13.9191381924229,
+          5.761117644170131,
+          -0.7864479361915662,
+          8.040002019130966,
+          -0.05523328640848651,
+          -2.877439953444813,
+          6.567147177962735,
+          1.2102715170957081,
+          1.1848518836776756,
+          0.3065619196446617,
+          1.45571002347387,
+          3.0889126913591856,
+          -0.01057784264429014,
+          2.367397320832205,
+          -3.53497278902332,
+          -0.6829575508215009,
+          1.6055113350581975,
+          -0.24694303523695849,
+          3.704816126553912,
+          0.9661932777091475,
+          -4.542804819001188).roundTo(3))
 
     }
 
@@ -95,7 +98,7 @@ class LogisticSuite extends FunSpec with Matchers {
                               stat.sgd.L2(50d),
                               stat.sgd.NewtonUpdater)
       assert(
-        sgdresult.estimatesV.roundTo(5) == Vec(
+        sgdresult.estimatesV.roundTo(3) == Vec(
           -1.3561202984178287,
           0.2594410065773155,
           0.03605859323645384,
@@ -116,7 +119,7 @@ class LogisticSuite extends FunSpec with Matchers {
           0.011137070547289846,
           1.945350339377649E-5,
           0.08558699047822457,
-          -0.15844169804207395).roundTo(5))
+          -0.15844169804207395).roundTo(3))
 
       val sgdresultfista =
         stat.sgd.Sgd.optimize(frame2,
@@ -126,7 +129,7 @@ class LogisticSuite extends FunSpec with Matchers {
                               stat.sgd.FistaUpdater)
 
       assert(
-        sgdresultfista.estimatesV.roundTo(5) == Vec(
+        sgdresultfista.estimatesV.roundTo(3) == Vec(
           -1.3562102827287341,
           0.2594525790493179,
           0.0360598255007527,
@@ -147,7 +150,7 @@ class LogisticSuite extends FunSpec with Matchers {
           0.011138263506677085,
           1.0960471231854195E-5,
           0.08559228471086837,
-          -0.1584441386306449).roundTo(5))
+          -0.1584441386306449).roundTo(3))
 
     }
 
@@ -194,7 +197,7 @@ class LogisticSuite extends FunSpec with Matchers {
                               stat.sgd.FistaUpdater)
 
       assert(
-        sgdresultfista.estimatesV.roundTo(5) == Vec(
+        sgdresultfista.estimatesV.roundTo(3) == Vec(
           -1.8742473938491546,
           0.7939496733771211,
           0.0,
@@ -215,7 +218,7 @@ class LogisticSuite extends FunSpec with Matchers {
           0.0,
           0.0,
           0.0642348966774298,
-          -0.3898001431502568).roundTo(5))
+          -0.3898001431502568).roundTo(3))
 
     }
 

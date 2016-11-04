@@ -9,7 +9,7 @@ object NewtonUpdater extends Updater[Iteration] {
   def next(b: Vec[Double],
            batch: Batch,
            obj: ObjectiveFunction[_],
-           pen: Penalty,
+           pen: Penalty[_],
            last: Option[Iteration]) = {
 
     val j = obj.jacobi(b, batch) - pen.jacobi(b, batch)

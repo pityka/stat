@@ -15,19 +15,21 @@ import stat.crossvalidation.{
   CVSplit,
   trainOnTestEvalOnHoldout,
   Split,
-  EvalR
+  EvalR,
+  HyperParameterSearch
 }
 
 object Cv {
 
-  def fitWithCV[I <: ItState, E](
+  def fitWithCV[I <: ItState, E, H](
       x: Mat[Double],
       y: Vec[Double],
       obj: ObjectiveFunction[E],
-      pen: Penalty,
+      pen: Penalty[H],
       upd: Updater[I],
       trainRatio: Double,
       split: CVSplit,
+      search: HyperParameterSearch[H],
       hMin: Double,
       hMax: Double,
       hN: Int,
@@ -50,22 +52,21 @@ object Cv {
                          epsilon,
                          seed)
 
-    val nested = Train.nestGridSearch(training, split, hMin, hMax, hN)
+    val nested = Train.nestedSearch(training, split, hMin, hMax, hN, search)
 
     trainOnTestEvalOnHoldout(
       (0 until x.numRows).toVec,
       nested,
-      Split(trainRatio, seed),
-      Double.NaN
+      Split(trainRatio, seed)
     ).next
 
   }
 
-  def train[I <: ItState, E](
+  def train[I <: ItState, E, H](
       x: Mat[Double],
       y: Vec[Double],
       obj: ObjectiveFunction[E],
-      pen: Penalty,
+      pen: Penalty[H],
       upd: Updater[I],
       penalizationMask: Vec[Double],
       maxIterations: Int,
@@ -73,8 +74,8 @@ object Cv {
       convergedAverage: Int,
       epsilon: Double,
       seed: Int
-  ): Train[E] = new Train[E] {
-    def train(idx: Vec[Int], hyper: Double): Eval[E] = {
+  ): Train[E, H] = new Train[E, H] {
+    def train(idx: Vec[Int], hyper: H): Eval[E] = {
 
       val result: SgdResult[E] = Sgd.optimize(
         DataSource.fromMat(x, y, idx, x.numRows, penalizationMask, seed),

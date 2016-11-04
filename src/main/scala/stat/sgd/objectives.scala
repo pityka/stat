@@ -57,7 +57,7 @@ object LinearRegression extends ObjectiveFunction[Double] {
 
 }
 
-object LogisticRegression extends ObjectiveFunction[Double] {
+object LogisticRegression extends ObjectiveFunction[(Double, Double, Double)] {
   def apply(b: Vec[Double], batch: Batch): Double = {
     val Xb = (batch.x mv b)
     val yXb = batch.y * Xb
@@ -106,7 +106,22 @@ object LogisticRegression extends ObjectiveFunction[Double] {
 
   def eval(estimates: Vec[Double], batch: Batch) = {
     val p = predict(estimates, batch.x).map(x => if (x > 0.5) 1.0 else 0.0)
-    p.zipMap(batch.y)(_ == _).map(x => if (x) 1.0 else 0.0).mean
+    val accuracy = p.zipMap(batch.y)(_ == _).map(x => if (x) 1.0 else 0.0).mean
+
+    val tp = p
+      .zipMap(batch.y)((p, y) => p == 1d && y == 1d)
+      .map(x => if (x) 1.0 else 0.0)
+      .sum
+
+    val fp =
+      p.zipMap(batch.y)((p, y) => p == 1d && y == 0d)
+        .map(x => if (x) 1.0 else 0.0)
+        .sum
+
+    val precision = tp / (tp + fp)
+    val recall = tp / batch.y.sum
+
+    (accuracy, precision, recall)
   }
 
 }

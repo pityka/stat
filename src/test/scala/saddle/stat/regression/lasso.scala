@@ -6,6 +6,9 @@ import stat._
 import org.saddle.io._
 
 class LassoSuite extends FunSpec with Matchers {
+  slogging.LoggerConfig.factory = slogging.PrintLoggerFactory()
+  slogging.LoggerConfig.level = slogging.LogLevel.DEBUG
+
   describe("lasso alone") {
 
     val frame = CsvParser
@@ -391,53 +394,49 @@ class LassoSuite extends FunSpec with Matchers {
     //
     // }
 
-    // it("elastic net  against penalized") {
-    //
-    //   val lassoresult = PenalizedWithElasticNet.fit(frame, "V22", 50d -> 25d)
-    //
-    //   val penalized = Seq(
-    //     0.329945491,
-    //     0.849655715,
-    //     0.000000000,
-    //     0.206803964,
-    //     0.000000000,
-    //     -0.322154692,
-    //     0.261500178,
-    //     0.000000000,
-    //     0.008798273,
-    //     0.000000000,
-    //     0.000000000,
-    //     0.000000000,
-    //     0.000000000,
-    //     0.000000000,
-    //     -0.723725582,
-    //     0.000000000,
-    //     0.000000000,
-    //     0.000000000,
-    //     0.000000000,
-    //     0.000000000,
-    //     -0.363951587
-    //   )
-    //
-    //   // println(lassoresult.coefficients)
-    //
-    //   (penalized zip lassoresult.estimatesVV.toSeq).foreach {
-    //     case (x, y) =>
-    //       if (!(math.abs(x - y) < 0.1)) {
-    //         println("penalized: " + x + " vs my: " + y)
-    //       }
-    //       (math.abs(x - y) < 0.1) should equal(true)
-    //   }
-    //
-    //   // (glmnet zip lassoresult.coefficients.toSeq).foreach {
-    //   //   case (x, y) =>
-    //   //     if (!(math.abs(x - y) < 0.01)) {
-    //   //       println("glmnet: " + x + " vs my: " + y)
-    //   //     }
-    //   //     (math.abs(x - y) < 0.01) should equal(true)
-    //   // }
-    //
-    // }
+    it("elastic net  against penalized") {
+
+      val sgdresultFista =
+        stat.sgd.Sgd.optimize(frame,
+                              "V22",
+                              stat.sgd.LinearRegression,
+                              stat.sgd.ElasticNet(50d, 25d),
+                              stat.sgd.FistaUpdater,
+                              standardize = false)
+
+      val penalized = Seq(
+        0.329945491,
+        0.849655715,
+        0.000000000,
+        0.206803964,
+        0.000000000,
+        -0.322154692,
+        0.261500178,
+        0.000000000,
+        0.008798273,
+        0.000000000,
+        0.000000000,
+        0.000000000,
+        0.000000000,
+        0.000000000,
+        -0.723725582,
+        0.000000000,
+        0.000000000,
+        0.000000000,
+        0.000000000,
+        0.000000000,
+        -0.363951587
+      )
+
+      (penalized zip sgdresultFista.estimatesV.toSeq).foreach {
+        case (x, y) =>
+          if (!(math.abs(x - y) < 0.05)) {
+            println("penalized: " + x + " vs my: " + y)
+          }
+          (math.abs(x - y) < 0.05) should equal(true)
+      }
+
+    }
 
   }
 }
