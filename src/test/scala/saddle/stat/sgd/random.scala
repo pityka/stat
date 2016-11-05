@@ -46,9 +46,7 @@ class LMRandomSuite extends FunSuite {
       42
     )
 
-    println(fitFista)
-    val lypredicted = (design mm Mat(fitFista._2)).col(0)
-    println(stat.crossvalidation.rSquared(lypredicted, ly))
+    assert(fitFista._1.misc > 0.95)
 
   }
 }
@@ -94,12 +92,7 @@ class LRRandomSuite extends FunSuite {
       epsilon = 1E-3,
       42
     )
-
-    println(fitFista)
-    val lypredicted = LogisticRegression
-      .predict(fitFista._2, design)
-      .map(p => if (p > 0.5) 1.0 else 0.0)
-    println(lypredicted)
+    assert(fitFista._1.misc._1 > 0.75)
 
   }
 }
