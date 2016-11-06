@@ -5,11 +5,11 @@ import org.scalatest._
 import stat._
 import org.saddle.io._
 
-class LogisticSuite extends FunSpec with Matchers {
+class MultinomialLogisticSuite extends FunSpec with Matchers {
   slogging.LoggerConfig.factory = slogging.PrintLoggerFactory()
-  slogging.LoggerConfig.level = slogging.LogLevel.DEBUG
+  slogging.LoggerConfig.level = slogging.LogLevel.TRACE
 
-  describe("logistic regression") {
+  describe("multinomial logistic regression sgd, logistic case (2 classes)") {
 
     val frame = CsvParser
       .parse(CsvFile(getClass.getResource("/").getPath + "/example.csv"))
@@ -29,7 +29,7 @@ class LogisticSuite extends FunSpec with Matchers {
       val sgdresult =
         stat.sgd.Sgd.optimize(frame2,
                               "V22",
-                              stat.sgd.LogisticRegression,
+                              stat.sgd.MultinomialLogisticRegression(2),
                               stat.sgd.L2(0d),
                               stat.sgd.NewtonUpdater)
 
@@ -59,7 +59,7 @@ class LogisticSuite extends FunSpec with Matchers {
       val sgdresultfista =
         stat.sgd.Sgd.optimize(frame2,
                               "V22",
-                              stat.sgd.LogisticRegression,
+                              stat.sgd.MultinomialLogisticRegression(2),
                               stat.sgd.L2(0d),
                               stat.sgd.FistaUpdater)
 
@@ -94,7 +94,7 @@ class LogisticSuite extends FunSpec with Matchers {
       val sgdresult =
         stat.sgd.Sgd.optimize(frame2,
                               "V22",
-                              stat.sgd.LogisticRegression,
+                              stat.sgd.MultinomialLogisticRegression(2),
                               stat.sgd.L2(50d),
                               stat.sgd.NewtonUpdater)
       assert(
@@ -124,7 +124,7 @@ class LogisticSuite extends FunSpec with Matchers {
       val sgdresultfista =
         stat.sgd.Sgd.optimize(frame2,
                               "V22",
-                              stat.sgd.LogisticRegression,
+                              stat.sgd.MultinomialLogisticRegression(2),
                               stat.sgd.L2(50d),
                               stat.sgd.FistaUpdater)
 
@@ -159,7 +159,7 @@ class LogisticSuite extends FunSpec with Matchers {
       val sgdresultfista =
         stat.sgd.Sgd.optimize(frame2,
                               "V22",
-                              stat.sgd.LogisticRegression,
+                              stat.sgd.MultinomialLogisticRegression(2),
                               stat.sgd.L1(50d),
                               stat.sgd.FistaUpdater)
       assert(
@@ -192,7 +192,7 @@ class LogisticSuite extends FunSpec with Matchers {
       val sgdresultfista =
         stat.sgd.Sgd.optimize(frame2,
                               "V22",
-                              stat.sgd.LogisticRegression,
+                              stat.sgd.MultinomialLogisticRegression(2),
                               stat.sgd.L1(5d),
                               stat.sgd.FistaUpdater)
 
