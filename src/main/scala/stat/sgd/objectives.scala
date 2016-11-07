@@ -8,6 +8,7 @@ trait ObjectiveFunction[E] {
   def hessian(p: Vec[Double], batch: Batch): Mat[Double]
   def minusHessianLargestEigenValue(p: Vec[Double], batch: Batch): Double
   def apply(b: Vec[Double], batch: Batch): Double
+  def start(cols: Int): Vec[Double]
 
   def predict(estimates: Vec[Double], data: Vec[Double]): Double
   def predict(estimates: Vec[Double], data: Mat[Double]): Vec[Double]
@@ -17,9 +18,17 @@ trait ObjectiveFunction[E] {
                rng: () => Double): Vec[Double]
 
   def eval(est: Vec[Double], batch: Batch): E
+
+  def adaptPenalizationMask(batch: Batch): Vec[Double]
+  def adaptParameterNames(s: Seq[String]): Seq[String]
 }
 
 object LinearRegression extends ObjectiveFunction[Double] {
+  def adaptPenalizationMask(batch: Batch): Vec[Double] = batch.penalizationMask
+  def adaptParameterNames(s: Seq[String]): Seq[String] = s
+
+  def start(cols: Int): Vec[Double] = vec.zeros(cols)
+
   def apply(b: Vec[Double], batch: Batch): Double = {
     val yMinusXb = batch.y - (batch.x mv b)
     (yMinusXb dot yMinusXb) * (-1)
@@ -58,6 +67,11 @@ object LinearRegression extends ObjectiveFunction[Double] {
 }
 
 object LogisticRegression extends ObjectiveFunction[(Double, Double, Double)] {
+  def adaptPenalizationMask(batch: Batch): Vec[Double] = batch.penalizationMask
+  def adaptParameterNames(s: Seq[String]): Seq[String] = s
+
+  def start(cols: Int): Vec[Double] = vec.zeros(cols)
+
   def apply(b: Vec[Double], batch: Batch): Double = {
     val Xb = (batch.x mv b)
     val yXb = batch.y * Xb

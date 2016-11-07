@@ -85,7 +85,14 @@ object Sgd extends StrictLogging {
                           convergedAverage,
                           epsilon)
 
-    NamedSgdResult(result, f.colIx.toSeq.filter(_ != yKey).toIndex)
+    val idx =
+      obj
+        .adaptParameterNames(
+          if (addIntercept)
+            ("intercept" +: f.colIx.toSeq.filter(_ != yKey))
+          else f.colIx.toSeq.filter(_ != yKey))
+        .toIndex
+    NamedSgdResult(result, idx)
   }
 
   def optimize[I <: ItState, E](
@@ -127,7 +134,7 @@ object Sgd extends StrictLogging {
   ): SgdResult[E] = {
 
     val data: Iterator[Batch] = dataSource.training.flatten
-    val start = vec.zeros(dataSource.numCols)
+    val start = obj.start(dataSource.numCols)
 
     def iteration(start: Vec[Double],
                   max: Int,

@@ -12,8 +12,9 @@ object NewtonUpdater extends Updater[Iteration] {
            pen: Penalty[_],
            last: Option[Iteration]) = {
 
-    val j = obj.jacobi(b, batch) - pen.jacobi(b, batch)
-    val h = obj.hessian(b, batch) - pen.hessian(b, batch)
+    val penalizationMask = obj.adaptPenalizationMask(batch)
+    val j = obj.jacobi(b, batch) - pen.jacobi(b, penalizationMask)
+    val h = obj.hessian(b, batch) - pen.hessian(b, penalizationMask)
 
     val hinv =
       (h * (-1)).invertPD
@@ -23,7 +24,9 @@ object NewtonUpdater extends Updater[Iteration] {
     val next = b - (hinv mm j).col(0)
 
     val jacobisum =
-      (obj.jacobi(next, batch) - pen.jacobi(next, batch)).map(math.abs).sum
+      (obj.jacobi(next, batch) - pen.jacobi(next, penalizationMask))
+        .map(math.abs)
+        .sum
 
     Iteration(next, jacobisum)
 

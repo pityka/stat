@@ -9,6 +9,17 @@ case class MultinomialLogisticRegression(numberOfClasses: Int)
 
   val C = numberOfClasses - 1
 
+  def adaptPenalizationMask(batch: Batch): Vec[Double] =
+    mat.repeat(batch.penalizationMask, C).contents
+
+  def adaptParameterNames(s: Seq[String]): Seq[String] = s.flatMap { s =>
+    1 until numberOfClasses map { c =>
+      s + "_" + c
+    }
+  }
+
+  def start(cols: Int): Vec[Double] = vec.zeros(cols * C)
+
   def apply(b: Vec[Double], batch: Batch): Double = {
     val bm = Mat(batch.x.numCols, C, b)
 
@@ -32,8 +43,8 @@ case class MultinomialLogisticRegression(numberOfClasses: Int)
   def jacobi(b: Vec[Double], batch: Batch): Vec[Double] = {
     val bm = Mat(batch.x.numCols, C, b)
 
-    0 until bm.numCols flatMap { j =>
-      0 until bm.numRows map { k =>
+    0 until bm.numRows flatMap { k =>
+      0 until bm.numCols map { j =>
         ((0 until batch.y.length) map { i =>
           val f: Double =
             if (batch.y.raw(i).toInt - 1 == j) batch.x.raw(i, k) else 0.0
@@ -61,47 +72,48 @@ case class MultinomialLogisticRegression(numberOfClasses: Int)
   def hessian(b: Vec[Double], batch: Batch): Mat[Double] = {
     val bm = Mat(batch.x.numCols, C, b)
 
-    val vec = 0 until bm.numCols flatMap { j =>
+    val vec =
       0 until bm.numRows flatMap { k =>
-        0 until bm.numCols flatMap { jp =>
-          0 until bm.numRows map { kp =>
-            (0 until batch.y.length map { i =>
-              val xik = batch.x.raw(i, k)
-              val xikp = batch.x.raw(i, kp)
+        0 until bm.numCols flatMap { j =>
+          0 until bm.numRows flatMap { kp =>
+            0 until bm.numCols map { jp =>
+              (0 until batch.y.length map { i =>
+                val xik = batch.x.raw(i, k)
+                val xikp = batch.x.raw(i, kp)
 
-              val pij = {
-                val x = batch.x.row(i)
-                val denom = {
+                val pij = {
+                  val x = batch.x.row(i)
+                  val denom = {
 
-                  (0 until C map { j =>
-                    math.exp(x dot bm.col(j))
-                  }).sum + 1d
+                    (0 until C map { j =>
+                      math.exp(x dot bm.col(j))
+                    }).sum + 1d
+                  }
+                  val nom = math.exp(x dot bm.col(j))
+                  nom / denom
                 }
-                val nom = math.exp(x dot bm.col(j))
-                nom / denom
-              }
 
-              val pijp = {
-                val x = batch.x.row(i)
-                val denom = {
+                val pijp = {
+                  val x = batch.x.row(i)
+                  val denom = {
 
-                  (0 until C map { j =>
-                    math.exp(x dot bm.col(j))
-                  }).sum + 1d
+                    (0 until C map { j =>
+                      math.exp(x dot bm.col(j))
+                    }).sum + 1d
+                  }
+                  val nom = math.exp(x dot bm.col(jp))
+                  nom / denom
                 }
-                val nom = math.exp(x dot bm.col(jp))
-                nom / denom
-              }
 
-              if (j == jp) -1 * xik * xikp * pij * (1 - pij)
-              else xik * xikp * pij * pijp
+                if (j == jp) -1 * xik * xikp * pij * (1 - pij)
+                else xik * xikp * pij * pijp
 
-            }).sum
+              }).sum
 
+            }
           }
         }
-      }
-    } toArray
+      } toArray
 
     Mat(b.length, b.length, vec)
   }

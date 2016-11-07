@@ -25,10 +25,13 @@ object FistaUpdater extends Updater[FistaItState] {
            pen: Penalty[_],
            last: Option[FistaItState]): FistaItState = {
 
-    def shrink(w: Vec[Double], alpha1: Double) =
-      pen.proximal(w, batch, alpha1)
+    val penalizationMask = obj.adaptPenalizationMask(batch)
 
-    def penaltyFunction(w: Vec[Double]): Double = pen.apply(w, batch)
+    def shrink(w: Vec[Double], alpha1: Double) =
+      pen.proximal(w, penalizationMask, alpha1)
+
+    def penaltyFunction(w: Vec[Double]): Double =
+      pen.apply(w, penalizationMask)
 
     def gradient(w: Vec[Double]) = obj.jacobi(w, batch) * (-1)
 
