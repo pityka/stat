@@ -24,7 +24,7 @@ object Cv {
   def fitWithCV[I <: ItState, E, H](
       x: Mat[Double],
       y: Vec[Double],
-      obj: ObjectiveFunction[E],
+      obj: ObjectiveFunction[E, _],
       pen: Penalty[H],
       upd: Updater[I],
       trainRatio: Double,
@@ -65,7 +65,7 @@ object Cv {
   def train[I <: ItState, E, H](
       x: Mat[Double],
       y: Vec[Double],
-      obj: ObjectiveFunction[E],
+      obj: ObjectiveFunction[E, _],
       pen: Penalty[H],
       upd: Updater[I],
       penalizationMask: Vec[Double],
@@ -77,7 +77,7 @@ object Cv {
   ): Train[E, H] = new Train[E, H] {
     def train(idx: Vec[Int], hyper: H): Eval[E] = {
 
-      val result: SgdResult[E] = Sgd.optimize(
+      val result = Sgd.optimize(
         DataSource.fromMat(x, y, idx, x.numRows, penalizationMask, seed),
         obj,
         pen.withHyperParameter(hyper),

@@ -11,7 +11,7 @@ import stat.regression.{
 }
 import slogging.StrictLogging
 
-trait EvaluateFit[E] extends Prediction {
+trait EvaluateFit[E, @specialized(Double) P] extends Prediction[P] {
   def evaluateFit(batch: Batch): Double
   def evaluateFit2(batch: Batch): E
 }
@@ -24,28 +24,28 @@ trait ItState {
 trait Updater[I <: ItState] {
   def next(x: Vec[Double],
            b: Batch,
-           obj: ObjectiveFunction[_],
+           obj: ObjectiveFunction[_, _],
            pen: Penalty[_],
            last: Option[I]): I
 }
 
-case class SgdResult[E](
+case class SgdResult[E, P](
     estimatesV: Vec[Double],
-    model: ObjectiveFunction[E]
-) extends Prediction
-    with EvaluateFit[E] {
+    model: ObjectiveFunction[E, P]
+) extends Prediction[P]
+    with EvaluateFit[E, P] {
   def predict(v: Vec[Double]) = model.predict(estimatesV, v)
   def predict(m: Mat[Double]) = model.predict(estimatesV, m)
   def evaluateFit(b: Batch): Double = model.apply(estimatesV, b)
   def evaluateFit2(b: Batch): E = model.eval(estimatesV, b)
 }
 
-case class NamedSgdResult[E](
-    raw: SgdResult[E],
+case class NamedSgdResult[E, P](
+    raw: SgdResult[E, P],
     names: Index[String]
-) extends NamedPrediction
-    with Prediction
-    with EvaluateFit[E] {
+) extends NamedPrediction[P]
+    with Prediction[P]
+    with EvaluateFit[E, P] {
   def estimatesV = raw.estimatesV
   def predict(v: Vec[Double]) = raw.predict(v)
   def predict(m: Mat[Double]) = raw.predict(m)
@@ -55,10 +55,10 @@ case class NamedSgdResult[E](
 
 object Sgd extends StrictLogging {
 
-  def optimize[RX: ST: ORD, I <: ItState, E](
+  def optimize[RX: ST: ORD, I <: ItState, E, P](
       f: Frame[RX, String, Double],
       yKey: String,
-      obj: ObjectiveFunction[E],
+      obj: ObjectiveFunction[E, P],
       pen: Penalty[_],
       upd: Updater[I],
       missingMode: MissingMode = DropSample,
@@ -69,7 +69,7 @@ object Sgd extends StrictLogging {
       epsilon: Double = 1E-6,
       seed: Int = 42,
       standardize: Boolean = true
-  ): NamedSgdResult[E] = {
+  ): NamedSgdResult[E, P] = {
     val result = optimize(DataSource.fromFrame(f,
                                                yKey,
                                                missingMode,
@@ -95,10 +95,10 @@ object Sgd extends StrictLogging {
     NamedSgdResult(result, idx)
   }
 
-  def optimize[I <: ItState, E](
+  def optimize[I <: ItState, E, P](
       x: Mat[Double],
       y: Vec[Double],
-      obj: ObjectiveFunction[E],
+      obj: ObjectiveFunction[E, P],
       pen: Penalty[_],
       upd: Updater[I],
       penalizationMask: Vec[Double],
@@ -107,7 +107,7 @@ object Sgd extends StrictLogging {
       convergedAverage: Int,
       epsilon: Double,
       seed: Int
-  ): SgdResult[E] =
+  ): SgdResult[E, P] =
     optimize(DataSource.fromMat(x,
                                 y,
                                 (0 until x.numRows).toVec,
@@ -122,16 +122,16 @@ object Sgd extends StrictLogging {
              convergedAverage,
              epsilon)
 
-  def optimize[I <: ItState, E](
+  def optimize[I <: ItState, E, P](
       dataSource: DataSource,
-      obj: ObjectiveFunction[E],
+      obj: ObjectiveFunction[E, P],
       pen: Penalty[_],
       updater: Updater[I],
       maxIterations: Int,
       minEpochs: Int,
       convergedAverage: Int,
       epsilon: Double
-  ): SgdResult[E] = {
+  ): SgdResult[E, P] = {
 
     val data: Iterator[Batch] = dataSource.training.flatten
     val start = obj.start(dataSource.numCols)

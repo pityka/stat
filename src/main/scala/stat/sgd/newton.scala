@@ -8,7 +8,7 @@ case class Iteration(point: Vec[Double], convergence: Double) extends ItState
 object NewtonUpdater extends Updater[Iteration] {
   def next(b: Vec[Double],
            batch: Batch,
-           obj: ObjectiveFunction[_],
+           obj: ObjectiveFunction[_, _],
            pen: Penalty[_],
            last: Option[Iteration]) = {
 

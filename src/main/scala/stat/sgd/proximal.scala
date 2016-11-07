@@ -21,7 +21,7 @@ case class FistaItState(point: Vec[Double],
 object FistaUpdater extends Updater[FistaItState] {
   def next(x: Vec[Double],
            batch: Batch,
-           obj: ObjectiveFunction[_],
+           obj: ObjectiveFunction[_, _],
            pen: Penalty[_],
            last: Option[FistaItState]): FistaItState = {
 

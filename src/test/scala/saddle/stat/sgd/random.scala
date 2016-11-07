@@ -96,3 +96,50 @@ class LRRandomSuite extends FunSuite {
 
   }
 }
+
+class MNLRRandomSuite extends FunSuite {
+  slogging.LoggerConfig.factory = slogging.PrintLoggerFactory()
+  slogging.LoggerConfig.level = slogging.LogLevel.TRACE
+  test("random ") {
+    val samples = 1000
+    val columns = 50
+    val design = mat.randn(samples, columns)
+    val betas: Vec[Double] = vec.randn(20) concat vec.zeros(columns - 20)
+    val rng = new scala.util.Random(23)
+    val ly = LogisticRegression
+        .generate(betas, design, () => rng.nextDouble) + vec.randn(samples) * 0
+
+    println(betas)
+    println(ly)
+
+    val ds = DataSource.fromMat(design,
+                                ly,
+                                (0 until samples).toVec,
+                                samples,
+                                vec.ones(columns),
+                                42)
+
+    val fitFista = Cv.fitWithCV(
+      design,
+      ly,
+      sgd.MultinomialLogisticRegression(2),
+      ElasticNet(1.0, 1.0),
+      FistaUpdater,
+      0.8,
+      stat.crossvalidation.KFold(5, 42, 1),
+      stat.crossvalidation.RandomSearch2D(() => rng.nextDouble),
+      hMin = -2d,
+      hMax = 15d,
+      hN = 20,
+      penalizationMask = vec.ones(columns),
+      maxIterations = 5000,
+      minEpochs = 1,
+      convergedAverage = 2,
+      epsilon = 1E-3,
+      42
+    )
+    println(fitFista)
+    assert(fitFista._1.misc > 0.75)
+
+  }
+}

@@ -39,12 +39,13 @@ class MultinomialLogisticSuite extends FunSpec with Matchers {
                               stat.sgd.NewtonUpdater)
 
       assert(
-        sgdresult.estimatesV == Vec(-0.34917752762083,
-                                    -0.5749749117630679,
-                                    -0.019776398665027707,
-                                    -0.22419832067619133,
-                                    -9.438973754628176E-5,
-                                    -0.11614483978196864))
+        sgdresult.estimatesV.roundTo(3) == Vec(
+          -0.34917752762083,
+          -0.5749749117630679,
+          -0.019776398665027707,
+          -0.22419832067619133,
+          -9.438973754628176E-5,
+          -0.11614483978196864).roundTo(3))
 
       val sgdresultfista =
         stat.sgd.Sgd.optimize(frame3,

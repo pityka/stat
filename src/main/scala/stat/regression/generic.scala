@@ -59,24 +59,27 @@ object StudentTest {
 
 }
 
-trait Prediction {
+trait Prediction[@specialized(Double) P] {
   def estimatesV: Vec[Double]
-  def predict(v: Vec[Double]): Double
-  def predict(m: Mat[Double]): Vec[Double]
+  def predict(v: Vec[Double]): P
+  def predict(m: Mat[Double]): Vec[P]
 }
 
-trait NamedPrediction extends Prediction {
+trait NamedPrediction[@specialized(Double) P] extends Prediction[P] {
+  implicit def st: ST[P] = implicitly[ST[P]]
   def names: Index[String]
   def estimates: Series[String, Double] = Series(estimatesV, names)
   def predict[I: ST: Ordering](m: Frame[I, String, Double],
-                               intercept: Boolean): Series[I, Double] = {
+                               intercept: Boolean): Series[I, P] = {
 
     val m2 = (if (intercept) addIntercept(m) else m).reindexCol(names)
     Series(predict(m2.toMat), m2.rowIx)
   }
 }
 
-trait RegressionResult extends NamedPrediction with Prediction {
+trait RegressionResult
+    extends NamedPrediction[Double]
+    with Prediction[Double] {
   def covariate(s: String): Option[(Effect, TestResult)]
   def covariates: Map[String, (Effect, TestResult)]
   def intercept: (Effect, TestResult)

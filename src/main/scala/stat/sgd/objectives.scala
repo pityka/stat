@@ -3,15 +3,15 @@ package stat.sgd
 import org.saddle._
 import org.saddle.linalg._
 
-trait ObjectiveFunction[E] {
+trait ObjectiveFunction[E, @specialized(Double) P] {
   def jacobi(b: Vec[Double], batch: Batch): Vec[Double]
   def hessian(p: Vec[Double], batch: Batch): Mat[Double]
   def minusHessianLargestEigenValue(p: Vec[Double], batch: Batch): Double
   def apply(b: Vec[Double], batch: Batch): Double
   def start(cols: Int): Vec[Double]
 
-  def predict(estimates: Vec[Double], data: Vec[Double]): Double
-  def predict(estimates: Vec[Double], data: Mat[Double]): Vec[Double]
+  def predict(estimates: Vec[Double], data: Vec[Double]): P
+  def predict(estimates: Vec[Double], data: Mat[Double]): Vec[P]
 
   def generate(estimates: Vec[Double],
                data: Mat[Double],
@@ -23,7 +23,7 @@ trait ObjectiveFunction[E] {
   def adaptParameterNames(s: Seq[String]): Seq[String]
 }
 
-object LinearRegression extends ObjectiveFunction[Double] {
+object LinearRegression extends ObjectiveFunction[Double, Double] {
   def adaptPenalizationMask(batch: Batch): Vec[Double] = batch.penalizationMask
   def adaptParameterNames(s: Seq[String]): Seq[String] = s
 
@@ -66,7 +66,8 @@ object LinearRegression extends ObjectiveFunction[Double] {
 
 }
 
-object LogisticRegression extends ObjectiveFunction[(Double, Double, Double)] {
+object LogisticRegression
+    extends ObjectiveFunction[(Double, Double, Double), Double] {
   def adaptPenalizationMask(batch: Batch): Vec[Double] = batch.penalizationMask
   def adaptParameterNames(s: Seq[String]): Seq[String] = s
 
