@@ -31,7 +31,7 @@ object LinearRegression extends ObjectiveFunction[Double, Double] {
 
   def apply(b: Vec[Double], batch: Batch): Double = {
     val yMinusXb = batch.y - (batch.x mv b)
-    (yMinusXb dot yMinusXb) * (-1)
+    (yMinusXb vv yMinusXb) * (-1)
   }
 
   def jacobi(b: Vec[Double], batch: Batch): Vec[Double] = {

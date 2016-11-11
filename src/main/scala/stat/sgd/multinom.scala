@@ -23,83 +23,117 @@ case class MultinomialLogisticRegression(numberOfClasses: Int)
   def apply(b: Vec[Double], batch: Batch): Double = {
     val bm = Mat(batch.x.numCols, C, b)
 
-    (0 until batch.x.numRows).map { i =>
+    val xp = (batch.x mm bm).map(math.exp)
+
+    (0 until batch.x.numRows).foldLeft(0d) { (sum, i) =>
       val x: Vec[Double] = batch.x.row(i)
       val y: Double = batch.y.raw(i)
-      val denom = {
-        ((0 until C) map { (j: Int) =>
-          math.exp(x dot bm.col(j))
-        }).sum + 1d
-      }
+
+      val xpi = xp.row(i)
+
+      val denom = xpi.sum + 1
+
       val f =
         if (y == 0d) 0d
-        else x dot bm.col(y.toInt - 1)
+        else (x vv bm.col(y.toInt - 1))
 
-      f - math.log(denom)
-    }.sum
+      sum + f - math.log(denom)
+    }
 
   }
 
   def jacobi(b: Vec[Double], batch: Batch): Vec[Double] = {
     val bm = Mat(batch.x.numCols, C, b)
 
-    val xp = batch.x mm bm
+    val xp = (batch.x mm bm).map(math.exp)
 
-    val ar = Array.ofDim[Double](b.length)
-
-    var k = 0
-    var j = 0
-    var i = 0
-    var c = 0
-    while (k < bm.numRows) {
-      while (j < bm.numCols) {
-        var s = 0.0
-        while (i < batch.y.length) {
-          s += jj(k, j, i)
-          i += 1
-        }
-        ar(c) = s
-        c += 1
-        i = 0
-        j += 1
-      }
-      j = 0
-      k += 1
-    }
-
-    def jj(k: Int, j: Int, i: Int): Double = {
-      val f: Double =
-        if (batch.y.raw(i).toInt - 1 == j) batch.x.raw(i, k) else 0.0
-
-      val xpi = xp.row(i)
-
-      val pi = {
-        val x = batch.x.row(i)
-        val denom = {
-          var s = 0d
-          var j1 = 0
-          while (j1 < C) {
-            s += math.exp(xpi.raw(j1))
-            j1 += 1
-          }
-          s + 1d
-        }
-        val nom = math.exp(xpi.raw(j))
-        nom / denom
+    Mat(((0 until C) map { j =>
+      val y1 = batch.y.map { y =>
+        if (y.toInt - 1 == j) 1d else 0d
       }
 
-      f - pi * batch.x.raw(i, k)
+      val pi = Array.ofDim[Double](batch.y.length)
+      var i = 0
+      while (i < pi.length) {
 
-    }
+        val xpi = xp.row(i)
+        val xpis = xpi.sum
 
-    ar
+        val denom =
+          xpis + 1d
+
+        val nom = (xpi.raw(j))
+        pi(i) = nom / denom
+
+        i += 1
+      }
+
+      val t = y1 - (pi: Vec[Double])
+
+      (batch.x tmv t).col(0)
+
+    }): _*).contents
 
   }
+
+  // def jacobi(b: Vec[Double], batch: Batch): Vec[Double] = {
+  //   val bm = Mat(batch.x.numCols, C, b)
+  //
+  //   val xp = (batch.x mm bm).map(math.exp)
+  //
+  //   val ar = Array.ofDim[Double](b.length)
+  //
+  //   var k = 0
+  //   var j = 0
+  //   var i = 0
+  //   var c = 0
+  //   while (k < bm.numRows) {
+  //     while (j < bm.numCols) {
+  //       var s = 0.0
+  //       while (i < batch.y.length) {
+  //         s += jj(k, j, i)
+  //         i += 1
+  //       }
+  //       ar(c) = s
+  //       c += 1
+  //       i = 0
+  //       j += 1
+  //     }
+  //     j = 0
+  //     k += 1
+  //   }
+  //
+  //   def jj(k: Int, j: Int, i: Int): Double = {
+  //     val f: Double =
+  //       if (batch.y.raw(i).toInt - 1 == j) batch.x.raw(i, k) else 0.0
+  //
+  //     val xpi = xp.row(i)
+  //
+  //     val pi = {
+  //       val x = batch.x.row(i)
+  //       val denom = {
+  //         var s = 0d
+  //         var j1 = 0
+  //         while (j1 < C) {
+  //           s += (xpi.raw(j1))
+  //           j1 += 1
+  //         }
+  //         s + 1d
+  //       }
+  //       val nom = (xpi.raw(j))
+  //       nom / denom
+  //     }
+  //
+  //     f - pi * batch.x.raw(i, k)
+  //
+  //   }
+  //   ar
+  // }
 
   def hessian(b: Vec[Double], batch: Batch): Mat[Double] = {
     val bm: Mat[Double] = Mat(batch.x.numCols, C, b)
 
-    val xp = batch.x mm bm
+    val xp = (batch.x mm bm).map(math.exp)
 
     val result = mat.zeros(b.length, b.length)
     var ar = result.contents
@@ -141,24 +175,18 @@ case class MultinomialLogisticRegression(numberOfClasses: Int)
       val xikp = batch.x.raw(i, kp)
       val x: Vec[Double] = batch.x.row(i)
       val xpi = xp.row(i)
+      val xpis = xpi.sum
 
-      val denom = {
-        var s = 0d
-        var j1 = 0
-        while (j1 < C) {
-          s += math.exp(xpi.raw(j1))
-          j1 += 1
-        }
-        s + 1d
-      }
+      val denom =
+        xpis + 1d
 
       val pij = {
-        val nom = math.exp(xpi.raw(j))
+        val nom = (xpi.raw(j))
         nom / denom
       }
 
       val pijp = {
-        val nom = math.exp(xpi.raw(jp))
+        val nom = (xpi.raw(jp))
         nom / denom
       }
 
@@ -166,13 +194,78 @@ case class MultinomialLogisticRegression(numberOfClasses: Int)
       else xik * xikp * pij * pijp
 
     }
-
     result
   }
 
-  def minusHessianLargestEigenValue(p: Vec[Double], batch: Batch): Double = {
-    val h = hessian(p, batch)
-    (h * (-1)).eigenValuesSymm(1).raw(0)
+  /**
+    * This is used only to set the minimum step size
+    * This does not return the correct value but hopefully something close to it
+    */
+  def minusHessianLargestEigenValue(b: Vec[Double], batch: Batch): Double = {
+
+    val bm: Mat[Double] = Mat(batch.x.numCols, C, b)
+
+    val xp = (batch.x mm bm).map(math.exp)
+
+    val x2 = {
+      var ar = Array.ofDim[Double](batch.y.length * (C) * batch.x.numCols)
+      var i = 0
+      var j = 0
+      var k = 0
+      var c = 0
+      while (i < batch.y.length) {
+        val xpi = xp.row(i)
+        val denom = xpi.sum + 1
+        while (k < batch.x.numCols) {
+          val x = batch.x.raw(i, k)
+          while (j < C) {
+            val pij = xpi.raw(j) / denom
+            ar(c) = pij * (-1) * x
+            c += 1
+            j += 1
+          }
+          j = 0
+          k += 1
+        }
+        k = 0
+        i += 1
+      }
+      Mat(batch.y.length, (C) * batch.x.numCols, ar)
+    }
+
+    val x3 = {
+      var ar = Array.ofDim[Double](batch.y.length * (C) * batch.x.numCols)
+      var i = 0
+      var j = 0
+      var k = 0
+      var c = 0
+      while (i < batch.y.length) {
+        val xpi = xp.row(i)
+        val denom = xpi.sum + 1
+        while (k < batch.x.numCols) {
+          val x = batch.x.raw(i, k)
+          while (j < C) {
+            val pij = xpi.raw(j) / denom
+            ar(c) = math.sqrt(pij * (1 - pij)) * (-1) * x
+            c += 1
+            j += 1
+          }
+          j = 0
+          k += 1
+        }
+        k = 0
+        i += 1
+      }
+      Mat(batch.y.length, (C) * batch.x.numCols, ar)
+    }
+
+    val s1 = x2.singularValues(1).raw(0)
+    val s2 = x3.singularValues(1).raw(0)
+
+    s1 * s1 + s2 * s2
+
+    // val h = hessian(p, batch)
+    // (h * (-1)).eigenValuesSymm(1).raw(0)
   }
 
   def predict(estimates: Vec[Double], data: Vec[Double]): Vec[Double] = {

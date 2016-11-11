@@ -63,8 +63,8 @@ class LRRandomSuite extends FunSuite {
     val ly = LogisticRegression
         .generate(betas, design, () => rng.nextDouble) + vec.randn(samples) * 0
 
-    println(betas)
-    println(ly)
+    // println(betas)
+    // println(ly)
 
     val ds = DataSource.fromMat(design,
                                 ly,
@@ -102,7 +102,7 @@ class MNLRRandomSuite extends FunSuite {
   slogging.LoggerConfig.level = slogging.LogLevel.TRACE
   test("random ") {
     val samples = 1000
-    val columns = 50
+    val columns = 5000
     val design = mat.randn(samples, columns)
     val betas: Vec[Double] = vec.randn(20) concat vec.zeros(columns - 20)
     val rng = new scala.util.Random(23)

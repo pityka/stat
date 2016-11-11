@@ -7,7 +7,7 @@ import org.saddle.io._
 
 class MultinomialLogisticSuite extends FunSpec with Matchers {
   slogging.LoggerConfig.factory = slogging.PrintLoggerFactory()
-  slogging.LoggerConfig.level = slogging.LogLevel.TRACE
+  slogging.LoggerConfig.level = slogging.LogLevel.DEBUG
 
   describe("small multinomial, R") {
     val frame = CsvParser
@@ -123,27 +123,27 @@ class MultinomialLogisticSuite extends FunSpec with Matchers {
 
       assert(
         sgdresultfista.estimatesV.roundTo(3) == Vec(
-          -13.9191381924229,
-          5.761117644170131,
-          -0.7864479361915662,
-          8.040002019130966,
-          -0.05523328640848651,
-          -2.877439953444813,
-          6.567147177962735,
-          1.2102715170957081,
-          1.1848518836776756,
-          0.3065619196446617,
-          1.45571002347387,
-          3.0889126913591856,
-          -0.01057784264429014,
-          2.367397320832205,
-          -3.53497278902332,
-          -0.6829575508215009,
-          1.6055113350581975,
-          -0.24694303523695849,
-          3.704816126553912,
-          0.9661932777091475,
-          -4.542804819001188).roundTo(3))
+          -13.965551817191976,
+          5.783828810930236,
+          -0.7916670983244545,
+          8.066621934992632,
+          -0.056491782220990994,
+          -2.889032195572826,
+          6.590020730569251,
+          1.2138333570394784,
+          1.1873651870890003,
+          0.3114379098511703,
+          1.46534265740417,
+          3.1013697600486507,
+          -0.012478687784932623,
+          2.3754909745185455,
+          -3.5465070111854953,
+          -0.6885231058722754,
+          1.609729257407417,
+          -0.2473813651630387,
+          3.72456738007188,
+          0.9670351814569454,
+          -4.558141354592802).roundTo(3))
 
     }
 
@@ -220,8 +220,9 @@ class MultinomialLogisticSuite extends FunSpec with Matchers {
                               stat.sgd.MultinomialLogisticRegression(2),
                               stat.sgd.L1(50d),
                               stat.sgd.FistaUpdater)
+
       assert(
-        sgdresultfista.estimatesV.roundTo(3) == Vec(-1.152811195316048,
+        sgdresultfista.estimatesV.roundTo(3) == Vec(-1.1524182159869036,
                                                     0.0,
                                                     0.0,
                                                     0.0,
