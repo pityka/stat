@@ -14,6 +14,18 @@ case class DataSource(
 
 object DataSource extends StrictLogging {
 
+  def createDesignMatrix[RX: ST: ORD](f: Frame[RX, String, Double],
+                                      yKey: String,
+                                      missingMode: MissingMode = DropSample,
+                                      addIntercept: Boolean = true)
+    : (Mat[Double], Vec[Double], Vec[Double]) = {
+    val data2 =
+      stat.regression.createDesignMatrix(f, missingMode, addIntercept)
+
+    val x = data2.filterIx(_ != yKey)
+    (x.toMat, data2.firstCol(yKey).toVec, x.stdev.toVec)
+  }
+
   def fromFrame[RX: ST: ORD](f: Frame[RX, String, Double],
                              yKey: String,
                              missingMode: MissingMode = DropSample,
@@ -22,18 +34,17 @@ object DataSource extends StrictLogging {
                              seed: Int = 42,
                              standardize: Boolean = true): DataSource = {
 
-    val data2 =
-      createDesignMatrix(f, missingMode, addIntercept)
+    val (x, y, std) =
+      createDesignMatrix(f, yKey, missingMode, addIntercept)
 
-    val x = data2.filterIx(_ != yKey)
     fromMat(
-      trainingX = x.toMat,
-      trainingY = data2.firstCol(yKey).toVec,
+      trainingX = x,
+      trainingY = y,
       allowedIdx = (0 until x.numRows).toVec,
-      batchSize = math.min(batchSize, data2.numRows),
+      batchSize = math.min(batchSize, x.numRows),
       penalizationMask =
         if (standardize)
-          x.stdev.toVec.toSeq.zipWithIndex
+          std.toSeq.zipWithIndex
             .map(x => if (x._2 == 0) 0d else 1.0 / x._1)
             .toVec
         else Vec(0d +: vec.ones(x.numCols - 1).toSeq: _*),
