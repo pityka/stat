@@ -125,15 +125,14 @@ object Cv {
   )(implicit dsf: DataSourceFactory[D]): Train[E, H] = new Train[E, H] {
     def train(idx: Vec[Int], hyper: H): Eval[E] = {
 
-      val result = Sgd.optimize(data,
+      val result = Sgd.optimize(dsf.apply(data, Some(idx), rng),
                                 obj,
                                 pen.withHyperParameter(hyper),
                                 upd,
                                 maxIterations,
                                 minEpochs,
                                 convergedAverage,
-                                epsilon,
-                                rng)
+                                epsilon)
       new Eval[E] {
         def eval(idx: Vec[Int]): EvalR[E] = {
           val batch: Batch = dsf(data, Some(idx), rng).training.next.next

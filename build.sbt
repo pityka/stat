@@ -17,6 +17,8 @@ libraryDependencies ++= Seq(
 
 reformatOnCompileSettings
 
+parallelExecution in Test := false
+
 pomExtra in Global := {
   <url>https://pityka.github.io/stat</url>
   <licenses>
