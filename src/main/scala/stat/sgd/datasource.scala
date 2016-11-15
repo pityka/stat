@@ -20,6 +20,11 @@ case class MatrixData(trainingX: Mat[Double],
                       batchSize: Int,
                       penalizationMask: Vec[Double])
 
+case class SparseMatrixData(trainingX: SMat,
+                            trainingY: SVec,
+                            batchSize: Int,
+                            penalizationMask: Vec[Double])
+
 case class FrameData[RX: ST: ORD](f: Frame[RX, String, Double],
                                   yKey: String,
                                   missingMode: MissingMode = DropSample,
@@ -133,41 +138,47 @@ trait DataSourceFactories extends StrictLogging {
     (x.toMat, data2.firstCol(yKey).toVec, x.stdev.toVec)
   }
 
-  // def fromSparseMat(trainingX: SMat,
-  //                   trainingY: SVec,
-  //                   allowedIdx: Vec[Int],
-  //                   batchSize: Int,
-  //                   penalizationMask: Vec[Double],
-  //                   seed: Int): DataSource = {
-  //   val cidx = sparse.colIx(trainingX)
-  //
-  //   val iter = new Iterator[Iterator[Batch]] {
-  //
-  //     val rng = new scala.util.Random(seed)
-  //
-  //     def hasNext = true
-  //     def next = {
-  //       new Iterator[Batch] {
-  //
-  //         var c = 0
-  //         val idx = rng.shuffle(allowedIdx.toSeq).toVec
-  //
-  //         def hasNext = c < idx.length - 1
-  //         def next = {
-  //
-  //           val idx2 = idx(c to math.min(idx.length - 1, c + batchSize): _*)
-  //           c += batchSize
-  //
-  //           logger.trace("New batch of size {} ", idx2.length)
-  //
-  //           Batch(sparse.dense(trainingX, idx2, cidx),
-  //                 sparse.dense(trainingY, idx2),
-  //                 penalizationMask)
-  //         }
-  //
-  //       }
-  //     }
-  //   }
-  //   DataSource(iter, cidx.length, allowedIdx.length / batchSize + 1)
-  // }
+  implicit def sparseMatrixDataSource =
+    new DataSourceFactory[SparseMatrixData] {
+      def apply(t: SparseMatrixData,
+                allowedIdx2: Option[Vec[Int]],
+                rng: scala.util.Random): DataSource = {
+        import t._
+        val cidx = sparse.colIx(trainingX)
+
+        val allowedIdx =
+          allowedIdx2.getOrElse(0 until sparse.numRows(trainingX) toVec)
+
+        val iter = new Iterator[Iterator[Batch]] {
+
+          def hasNext = true
+          def next = {
+            new Iterator[Batch] {
+
+              var c = 0
+              val idx = rng.shuffle(allowedIdx.toSeq).toVec
+
+              def hasNext = c < idx.length - 1
+              def next = {
+
+                val idx2 = idx(
+                  c to math.min(idx.length - 1, c + batchSize): _*)
+                c += batchSize
+
+                logger.trace("New batch of size {} ", idx2.length)
+
+                Batch(sparse.dense(trainingX, idx2, cidx),
+                      sparse.dense(trainingY, idx2),
+                      penalizationMask)
+              }
+
+            }
+          }
+        }
+        DataSource(iter,
+                   cidx.length,
+                   sparse.rowIx(trainingX),
+                   allowedIdx.length / batchSize + 1)
+      }
+    }
 }
