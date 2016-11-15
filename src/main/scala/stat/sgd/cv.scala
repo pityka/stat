@@ -2,13 +2,7 @@ package stat.sgd
 
 import org.saddle._
 import org.saddle.linalg._
-import stat.regression.{
-  MissingMode,
-  DropSample,
-  createDesignMatrix,
-  Prediction,
-  NamedPrediction
-}
+import stat.regression.{MissingMode, DropSample, Prediction, NamedPrediction}
 import stat.crossvalidation.{
   Train,
   Eval,
@@ -40,20 +34,16 @@ object Cv {
       minEpochs: Int,
       convergedAverage: Int,
       epsilon: Double,
-      seed: Int
-  ): (EvalR[E], NamedSgdResult[E, P]) = {
-    val (x, y, std) =
-      DataSource.createDesignMatrix(data, yKey, missingMode, addIntercept)
+      rng: scala.util.Random
+  )(implicit dsf: DataSourceFactory[FrameData[RX]])
+    : (EvalR[E], NamedSgdResult[E, P]) = {
 
-    val penalizationMask =
-      if (standardize)
-        std.toSeq.zipWithIndex
-          .map(x => if (x._2 == 0) 0d else 1.0 / x._1)
-          .toVec
-      else Vec(0d +: vec.ones(x.numCols - 1).toSeq: _*)
-
-    val (eval, result) = fitWithCV(x,
-                                   y,
+    val (eval, result) = fitWithCV(FrameData(data,
+                                             yKey,
+                                             missingMode,
+                                             addIntercept,
+                                             standardize,
+                                             data.numRows),
                                    obj,
                                    pen,
                                    upd,
@@ -63,12 +53,11 @@ object Cv {
                                    hMin,
                                    hMax,
                                    hN,
-                                   penalizationMask,
                                    maxIterations,
                                    minEpochs,
                                    convergedAverage,
                                    epsilon,
-                                   seed)
+                                   rng)
 
     val idx =
       obj
@@ -81,9 +70,8 @@ object Cv {
     (eval, NamedSgdResult(result, idx))
   }
 
-  def fitWithCV[I <: ItState, E, H, P](
-      x: Mat[Double],
-      y: Vec[Double],
+  def fitWithCV[D, I <: ItState, E, H, P](
+      data: D,
       obj: ObjectiveFunction[E, P],
       pen: Penalty[H],
       upd: Updater[I],
@@ -93,31 +81,30 @@ object Cv {
       hMin: Double,
       hMax: Double,
       hN: Int,
-      penalizationMask: Vec[Double],
       maxIterations: Int,
       minEpochs: Int,
       convergedAverage: Int,
       epsilon: Double,
-      seed: Int
-  ): (EvalR[E], SgdResult[E, P]) = {
-    val training = train(x,
-                         y,
+      rng: scala.util.Random
+  )(implicit dsf: DataSourceFactory[D]): (EvalR[E], SgdResult[E, P]) = {
+    val training = train(data,
                          obj,
                          pen,
                          upd,
-                         penalizationMask,
                          maxIterations,
                          minEpochs,
                          convergedAverage,
                          epsilon,
-                         seed)
+                         rng)
 
     val nested = Train.nestedSearch(training, split, hMin, hMax, hN, search)
 
+    val allidx = dsf.apply(data, None, rng).allidx
+
     val (eval, estimates) = trainOnTestEvalOnHoldout(
-      (0 until x.numRows).toVec,
+      allidx,
       nested,
-      Split(trainRatio, seed)
+      Split(trainRatio, rng)
     ).next
 
     val prediction = SgdResult(estimates, obj)
@@ -125,37 +112,31 @@ object Cv {
 
   }
 
-  def train[I <: ItState, E, H](
-      x: Mat[Double],
-      y: Vec[Double],
+  def train[D, I <: ItState, E, H](
+      data: D,
       obj: ObjectiveFunction[E, _],
       pen: Penalty[H],
       upd: Updater[I],
-      penalizationMask: Vec[Double],
       maxIterations: Int,
       minEpochs: Int,
       convergedAverage: Int,
       epsilon: Double,
-      seed: Int
-  ): Train[E, H] = new Train[E, H] {
+      rng: scala.util.Random
+  )(implicit dsf: DataSourceFactory[D]): Train[E, H] = new Train[E, H] {
     def train(idx: Vec[Int], hyper: H): Eval[E] = {
 
-      val result = Sgd.optimize(
-        DataSource.fromMat(x, y, idx, x.numRows, penalizationMask, seed),
-        obj,
-        pen.withHyperParameter(hyper),
-        upd,
-        maxIterations,
-        minEpochs,
-        convergedAverage,
-        epsilon)
+      val result = Sgd.optimize(data,
+                                obj,
+                                pen.withHyperParameter(hyper),
+                                upd,
+                                maxIterations,
+                                minEpochs,
+                                convergedAverage,
+                                epsilon,
+                                rng)
       new Eval[E] {
         def eval(idx: Vec[Int]): EvalR[E] = {
-          val batch: Batch = DataSource
-            .fromMat(x, y, idx, x.numRows, penalizationMask, seed)
-            .training
-            .next
-            .next
+          val batch: Batch = dsf(data, Some(idx), rng).training.next.next
 
           val obj = result.evaluateFit(batch)
           val e = result.evaluateFit2(batch)

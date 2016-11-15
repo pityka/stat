@@ -2,13 +2,7 @@ package stat.sgd
 
 import org.saddle._
 import org.saddle.linalg._
-import stat.regression.{
-  MissingMode,
-  DropSample,
-  createDesignMatrix,
-  Prediction,
-  NamedPrediction
-}
+import stat.regression.{MissingMode, DropSample, Prediction, NamedPrediction}
 import slogging.StrictLogging
 
 trait EvaluateFit[E, @specialized(Double) P] extends Prediction[P] {
@@ -67,23 +61,19 @@ object Sgd extends StrictLogging {
       minEpochs: Int = 2,
       convergedAverage: Int = 50,
       epsilon: Double = 1E-6,
-      seed: Int = 42,
-      standardize: Boolean = true
-  ): NamedSgdResult[E, P] = {
-    val result = optimize(DataSource.fromFrame(f,
-                                               yKey,
-                                               missingMode,
-                                               addIntercept,
-                                               f.numRows,
-                                               seed,
-                                               standardize),
-                          obj,
-                          pen,
-                          upd,
-                          maxIterations,
-                          minEpochs,
-                          convergedAverage,
-                          epsilon)
+      standardize: Boolean = true,
+      rng: scala.util.Random = new scala.util.Random(42)
+  )(implicit sdf: DataSourceFactory[FrameData[RX]]): NamedSgdResult[E, P] = {
+    val result = optimize(
+      FrameData(f, yKey, missingMode, addIntercept, standardize, f.numRows),
+      obj,
+      pen,
+      upd,
+      maxIterations,
+      minEpochs,
+      convergedAverage,
+      epsilon,
+      rng)
 
     val idx =
       obj
@@ -95,25 +85,18 @@ object Sgd extends StrictLogging {
     NamedSgdResult(result, idx)
   }
 
-  def optimize[I <: ItState, E, P](
-      x: Mat[Double],
-      y: Vec[Double],
+  def optimize[D, I <: ItState, E, P](
+      data: D,
       obj: ObjectiveFunction[E, P],
       pen: Penalty[_],
       upd: Updater[I],
-      penalizationMask: Vec[Double],
       maxIterations: Int,
       minEpochs: Int,
       convergedAverage: Int,
       epsilon: Double,
-      seed: Int
-  ): SgdResult[E, P] =
-    optimize(DataSource.fromMat(x,
-                                y,
-                                (0 until x.numRows).toVec,
-                                x.numRows,
-                                penalizationMask,
-                                seed),
+      rng: scala.util.Random
+  )(implicit dsf: DataSourceFactory[D]): SgdResult[E, P] =
+    optimize(dsf.apply(data, None, rng),
              obj,
              pen,
              upd,

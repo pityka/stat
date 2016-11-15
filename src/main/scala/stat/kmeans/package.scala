@@ -6,11 +6,9 @@ import org.saddle.linalg._
 import org.nspl._
 import org.nspl.saddle._
 import org.nspl.data._
+import stat.sparse._
 
 package object kmeans {
-
-  type SVec = Series[Int, Double]
-  type SMat = IndexedSeq[SVec]
 
   def plot(data: SMat, res: KMeansResult, max: Int) = {
 
@@ -61,8 +59,8 @@ package object kmeans {
 
   def update(data: SMat, memberships: Seq[Vec[Int]]): SMat = {
     memberships.map { idx =>
-      colmeans(idx.map(i => data(i)).toSeq.toIndexedSeq)
-    }.toIndexedSeq
+      colmeans(idx.map(i => data(i)).toSeq.toVector)
+    }.toVector
   }
 
   def step(data: SMat, means: SMat) = {

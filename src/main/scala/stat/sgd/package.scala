@@ -1,3 +1,3 @@
 package stat
 
-package object sgd
+package object sgd extends DataSourceFactories

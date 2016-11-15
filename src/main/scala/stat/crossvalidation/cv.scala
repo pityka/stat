@@ -52,24 +52,20 @@ trait Eval[EvalRes] {
 
 sealed trait CVSplit {
   def generate(d: Vec[Int]): Iterator[(Vec[Int], Vec[Int])]
-  def withSeed(s: Int): CVSplit
 }
 
-case class Split(ratioOfTrain: Double, seed: Int) extends CVSplit {
+case class Split(ratioOfTrain: Double, rng: Random) extends CVSplit {
   def generate(d: Vec[Int]): Iterator[(Vec[Int], Vec[Int])] = {
-    val rng = new Random(seed)
     val indices = (0 until d.length).toVector
     val (in, out) =
       rng.shuffle(indices).splitAt((d.length * ratioOfTrain).toInt)
     List((d.take(in.toArray), d.take(out.toArray))).iterator
 
   }
-  def withSeed(i: Int) = Split(ratioOfTrain, i)
 }
 
-case class KFold(folds: Int, seed: Int, replica: Int) extends CVSplit {
+case class KFold(folds: Int, rng: Random, replica: Int) extends CVSplit {
   def generate(d: Vec[Int]): Iterator[(Vec[Int], Vec[Int])] = {
-    val rng = new Random(seed)
     val indices = (0 until d.length).toVector
     (1 to replica iterator) flatMap { r =>
       val shuffled = rng.shuffle(indices)
@@ -82,15 +78,14 @@ case class KFold(folds: Int, seed: Int, replica: Int) extends CVSplit {
 
     }
   }
-  def withSeed(i: Int) = KFold(folds, i, replica)
 }
 
 case class KFoldStratified(folds: Int,
-                           seed: Int,
+                           rng: Random,
                            replica: Int,
                            strata: Seq[Vec[Int]])
     extends CVSplit {
-  val kf = KFold(folds, seed, replica)
+  val kf = KFold(folds, rng, replica)
   def generate(d: Vec[Int]) = {
     val strataIters = strata.map(s => kf.generate(s))
     new Iterator[(Vec[Int], Vec[Int])] {
@@ -101,5 +96,4 @@ case class KFoldStratified(folds: Int,
           .reduce((x, y) => x._1.concat(y._1) -> x._2.concat(y._2))
     }
   }
-  def withSeed(i: Int) = KFoldStratified(folds, i, replica, strata)
 }
