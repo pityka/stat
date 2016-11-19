@@ -32,11 +32,13 @@ class MultinomialLogisticSuite extends FunSpec with Matchers {
       // library(nnet)
       // fit <- multinom(threeway ~ V3 + V4, data = d2)
       val sgdresult =
-        stat.sgd.Sgd.optimize(frame3,
-                              "threeway",
-                              stat.sgd.MultinomialLogisticRegression(3),
-                              stat.sgd.L2(0d),
-                              stat.sgd.NewtonUpdater)
+        stat.sgd.Sgd
+          .optimize(frame3,
+                    "threeway",
+                    stat.sgd.MultinomialLogisticRegression(3),
+                    stat.sgd.L2(0d),
+                    stat.sgd.NewtonUpdater)
+          .get
 
       assert(
         sgdresult.estimatesV.roundTo(3) == Vec(
@@ -48,11 +50,13 @@ class MultinomialLogisticSuite extends FunSpec with Matchers {
           -0.11614483978196864).roundTo(3))
 
       val sgdresultfista =
-        stat.sgd.Sgd.optimize(frame3,
-                              "threeway",
-                              stat.sgd.MultinomialLogisticRegression(3),
-                              stat.sgd.L2(0d),
-                              stat.sgd.FistaUpdater)
+        stat.sgd.Sgd
+          .optimize(frame3,
+                    "threeway",
+                    stat.sgd.MultinomialLogisticRegression(3),
+                    stat.sgd.L2(0d),
+                    stat.sgd.FistaUpdater)
+          .get
 
       assert(
         sgdresultfista.estimatesV.roundTo(3) == Vec(
@@ -85,11 +89,13 @@ class MultinomialLogisticSuite extends FunSpec with Matchers {
     it("lambda=0") {
 
       val sgdresult =
-        stat.sgd.Sgd.optimize(frame2,
-                              "V22",
-                              stat.sgd.MultinomialLogisticRegression(2),
-                              stat.sgd.L2(0d),
-                              stat.sgd.NewtonUpdater)
+        stat.sgd.Sgd
+          .optimize(frame2,
+                    "V22",
+                    stat.sgd.MultinomialLogisticRegression(2),
+                    stat.sgd.L2(0d),
+                    stat.sgd.NewtonUpdater)
+          .get
 
       assert(
         sgdresult.estimatesV.roundTo(3) == Vec(-13.456195494927975,
@@ -115,11 +121,13 @@ class MultinomialLogisticSuite extends FunSpec with Matchers {
                                                -4.400415060828859).roundTo(3))
 
       val sgdresultfista =
-        stat.sgd.Sgd.optimize(frame2,
-                              "V22",
-                              stat.sgd.MultinomialLogisticRegression(2),
-                              stat.sgd.L2(0d),
-                              stat.sgd.FistaUpdater)
+        stat.sgd.Sgd
+          .optimize(frame2,
+                    "V22",
+                    stat.sgd.MultinomialLogisticRegression(2),
+                    stat.sgd.L2(0d),
+                    stat.sgd.FistaUpdater)
+          .get
 
       assert(
         sgdresultfista.estimatesV.roundTo(3) == Vec(
@@ -150,11 +158,13 @@ class MultinomialLogisticSuite extends FunSpec with Matchers {
     it("lambda=50 L2") {
 
       val sgdresult =
-        stat.sgd.Sgd.optimize(frame2,
-                              "V22",
-                              stat.sgd.MultinomialLogisticRegression(2),
-                              stat.sgd.L2(50d),
-                              stat.sgd.NewtonUpdater)
+        stat.sgd.Sgd
+          .optimize(frame2,
+                    "V22",
+                    stat.sgd.MultinomialLogisticRegression(2),
+                    stat.sgd.L2(50d),
+                    stat.sgd.NewtonUpdater)
+          .get
       assert(
         sgdresult.estimatesV.roundTo(3) == Vec(
           -1.3561202984178287,
@@ -180,11 +190,13 @@ class MultinomialLogisticSuite extends FunSpec with Matchers {
           -0.15844169804207395).roundTo(3))
 
       val sgdresultfista =
-        stat.sgd.Sgd.optimize(frame2,
-                              "V22",
-                              stat.sgd.MultinomialLogisticRegression(2),
-                              stat.sgd.L2(50d),
-                              stat.sgd.FistaUpdater)
+        stat.sgd.Sgd
+          .optimize(frame2,
+                    "V22",
+                    stat.sgd.MultinomialLogisticRegression(2),
+                    stat.sgd.L2(50d),
+                    stat.sgd.FistaUpdater)
+          .get
 
       assert(
         sgdresultfista.estimatesV.roundTo(3) == Vec(
@@ -215,11 +227,13 @@ class MultinomialLogisticSuite extends FunSpec with Matchers {
     it("lambda=50 L1") {
 
       val sgdresultfista =
-        stat.sgd.Sgd.optimize(frame2,
-                              "V22",
-                              stat.sgd.MultinomialLogisticRegression(2),
-                              stat.sgd.L1(50d),
-                              stat.sgd.FistaUpdater)
+        stat.sgd.Sgd
+          .optimize(frame2,
+                    "V22",
+                    stat.sgd.MultinomialLogisticRegression(2),
+                    stat.sgd.L1(50d),
+                    stat.sgd.FistaUpdater)
+          .get
 
       assert(
         sgdresultfista.estimatesV.roundTo(3) == Vec(-1.1524182159869036,
@@ -249,11 +263,13 @@ class MultinomialLogisticSuite extends FunSpec with Matchers {
     it("lambda=5 L1") {
 
       val sgdresultfista =
-        stat.sgd.Sgd.optimize(frame2,
-                              "V22",
-                              stat.sgd.MultinomialLogisticRegression(2),
-                              stat.sgd.L1(5d),
-                              stat.sgd.FistaUpdater)
+        stat.sgd.Sgd
+          .optimize(frame2,
+                    "V22",
+                    stat.sgd.MultinomialLogisticRegression(2),
+                    stat.sgd.L1(5d),
+                    stat.sgd.FistaUpdater)
+          .get
 
       assert(
         sgdresultfista.estimatesV.roundTo(3) == Vec(

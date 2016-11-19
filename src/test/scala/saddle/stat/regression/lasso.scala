@@ -24,18 +24,22 @@ class LassoSuite extends FunSpec with Matchers {
       // val ridgeresult = Ridge.fit(frame, "V22", 0.0, addIntercept = true)
 
       val sgdresult =
-        stat.sgd.Sgd.optimize(frame,
-                              "V22",
-                              stat.sgd.LinearRegression,
-                              stat.sgd.L2(0d),
-                              stat.sgd.NewtonUpdater)
+        stat.sgd.Sgd
+          .optimize(frame,
+                    "V22",
+                    stat.sgd.LinearRegression,
+                    stat.sgd.L2(0d),
+                    stat.sgd.NewtonUpdater)
+          .get
 
       val sgdresultfista =
-        stat.sgd.Sgd.optimize(frame,
-                              "V22",
-                              stat.sgd.LinearRegression,
-                              stat.sgd.L2(0d),
-                              stat.sgd.FistaUpdater)
+        stat.sgd.Sgd
+          .optimize(frame,
+                    "V22",
+                    stat.sgd.LinearRegression,
+                    stat.sgd.L2(0d),
+                    stat.sgd.FistaUpdater)
+          .get
 
       val ln =
         LinearRegression.linearRegression(frame, "V22", addIntercept = true)
@@ -96,12 +100,14 @@ class LassoSuite extends FunSpec with Matchers {
       // val lassoresult = LASSO.fit(frame, "V22", 0.5)
 
       val sgdFista =
-        stat.sgd.Sgd.optimize(frame,
-                              "V22",
-                              stat.sgd.LinearRegression,
-                              stat.sgd.L1(0.5d),
-                              stat.sgd.FistaUpdater,
-                              standardize = false)
+        stat.sgd.Sgd
+          .optimize(frame,
+                    "V22",
+                    stat.sgd.LinearRegression,
+                    stat.sgd.L1(0.5d),
+                    stat.sgd.FistaUpdater,
+                    standardize = false)
+          .get
 
       // this is glmnet lambda=0.5/200 because they use different weighting inside the objective function
       val glmnet = Vector(
@@ -187,12 +193,14 @@ class LassoSuite extends FunSpec with Matchers {
       // val lassoresult = LASSO.fit(frame, "V22", 50.0)
 
       val sgdFista =
-        stat.sgd.Sgd.optimize(frame,
-                              "V22",
-                              stat.sgd.LinearRegression,
-                              stat.sgd.L1(50d),
-                              stat.sgd.FistaUpdater,
-                              standardize = false)
+        stat.sgd.Sgd
+          .optimize(frame,
+                    "V22",
+                    stat.sgd.LinearRegression,
+                    stat.sgd.L1(50d),
+                    stat.sgd.FistaUpdater,
+                    standardize = false)
+          .get
 
       val penalized = Vector(
         0.25867058,
@@ -249,20 +257,24 @@ class LassoSuite extends FunSpec with Matchers {
       // val result = Ridge.fit(frame, "V22", 50d)
 
       val sgdresult =
-        stat.sgd.Sgd.optimize(frame,
-                              "V22",
-                              stat.sgd.LinearRegression,
-                              stat.sgd.L2(50d),
-                              stat.sgd.NewtonUpdater,
-                              standardize = false)
+        stat.sgd.Sgd
+          .optimize(frame,
+                    "V22",
+                    stat.sgd.LinearRegression,
+                    stat.sgd.L2(50d),
+                    stat.sgd.NewtonUpdater,
+                    standardize = false)
+          .get
 
       val sgdresultFista =
-        stat.sgd.Sgd.optimize(frame,
-                              "V22",
-                              stat.sgd.LinearRegression,
-                              stat.sgd.L2(50d),
-                              stat.sgd.FistaUpdater,
-                              standardize = false)
+        stat.sgd.Sgd
+          .optimize(frame,
+                    "V22",
+                    stat.sgd.LinearRegression,
+                    stat.sgd.L2(50d),
+                    stat.sgd.FistaUpdater,
+                    standardize = false)
+          .get
 
       val penalized = IndexedSeq(0.305767252,
                                  0.973779894,
@@ -397,12 +409,14 @@ class LassoSuite extends FunSpec with Matchers {
     it("elastic net  against penalized") {
 
       val sgdresultFista =
-        stat.sgd.Sgd.optimize(frame,
-                              "V22",
-                              stat.sgd.LinearRegression,
-                              stat.sgd.ElasticNet(50d, 25d),
-                              stat.sgd.FistaUpdater,
-                              standardize = false)
+        stat.sgd.Sgd
+          .optimize(frame,
+                    "V22",
+                    stat.sgd.LinearRegression,
+                    stat.sgd.ElasticNet(50d, 25d),
+                    stat.sgd.FistaUpdater,
+                    standardize = false)
+          .get
 
       val penalized = Seq(
         0.329945491,

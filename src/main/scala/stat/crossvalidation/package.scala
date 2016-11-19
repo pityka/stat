@@ -13,24 +13,34 @@ package object crossvalidation extends StrictLogging {
       cvmode: CVSplit,
       hyper: H
   ): Iterator[(EvalR[E], Vec[Double])] = {
-    cvmode.generate(idx).map {
-      case (test, holdout) =>
-        logger.debug("train: {} , eval: {} ", test.length, holdout.length)
-        val fit = trainer.train(test, hyper)
-        (fit.eval(holdout), fit.estimatesV)
-    }
+    cvmode
+      .generate(idx)
+      .map {
+        case (test, holdout) =>
+          logger.debug("train: {} , eval: {} ", test.length, holdout.length)
+          trainer.train(test, hyper).map { fit =>
+            (fit.eval(holdout), fit.estimatesV)
+          }
+      }
+      .filter(_.isDefined)
+      .map(_.get)
   }
   def trainOnTestEvalOnHoldout[E](
       idx: Vec[Int],
       trainer: Train2[E],
       cvmode: CVSplit
   ): Iterator[(EvalR[E], Vec[Double])] = {
-    cvmode.generate(idx).map {
-      case (test, holdout) =>
-        logger.debug("train: {} , eval: {} ", test.length, holdout.length)
-        val fit = trainer.train(test)
-        (fit.eval(holdout), fit.estimatesV)
-    }
+    cvmode
+      .generate(idx)
+      .map {
+        case (test, holdout) =>
+          logger.debug("train: {} , eval: {} ", test.length, holdout.length)
+          trainer.train(test).map { fit =>
+            (fit.eval(holdout), fit.estimatesV)
+          }
+      }
+      .filter(_.isDefined)
+      .map(_.get)
   }
 
   def rSquared(predicted: Vec[Double], y: Vec[Double]) = {

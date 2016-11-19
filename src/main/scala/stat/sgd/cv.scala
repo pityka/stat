@@ -31,7 +31,7 @@ object Cv {
       hMax: Double,
       hN: Int,
       maxIterations: Int,
-      minEpochs: Int,
+      minEpochs: Double,
       convergedAverage: Int,
       epsilon: Double,
       rng: scala.util.Random
@@ -82,7 +82,7 @@ object Cv {
       hMax: Double,
       hN: Int,
       maxIterations: Int,
-      minEpochs: Int,
+      minEpochs: Double,
       convergedAverage: Int,
       epsilon: Double,
       rng: scala.util.Random
@@ -118,32 +118,35 @@ object Cv {
       pen: Penalty[H],
       upd: Updater[I],
       maxIterations: Int,
-      minEpochs: Int,
+      minEpochs: Double,
       convergedAverage: Int,
       epsilon: Double,
       rng: scala.util.Random
   )(implicit dsf: DataSourceFactory[D]): Train[E, H] = new Train[E, H] {
-    def train(idx: Vec[Int], hyper: H): Eval[E] = {
+    def train(idx: Vec[Int], hyper: H): Option[Eval[E]] = {
 
-      val result = Sgd.optimize(dsf.apply(data, Some(idx), rng),
-                                obj,
-                                pen.withHyperParameter(hyper),
-                                upd,
-                                maxIterations,
-                                minEpochs,
-                                convergedAverage,
-                                epsilon)
-      new Eval[E] {
-        def eval(idx: Vec[Int]): EvalR[E] = {
-          val batch: Batch = dsf(data, Some(idx), rng).training.next.next
+      Sgd
+        .optimize(dsf.apply(data, Some(idx), rng),
+                  obj,
+                  pen.withHyperParameter(hyper),
+                  upd,
+                  maxIterations,
+                  minEpochs,
+                  convergedAverage,
+                  epsilon)
+        .map { result =>
+          new Eval[E] {
+            def eval(idx: Vec[Int]): EvalR[E] = {
+              val batch: Batch = dsf(data, Some(idx), rng).training.next.next
 
-          val obj = result.evaluateFit(batch)
-          val e = result.evaluateFit2(batch)
-          EvalR(obj, e)
+              val obj = result.evaluateFit(batch)
+              val e = result.evaluateFit2(batch)
+              EvalR(obj, e)
 
+            }
+            def estimatesV = result.estimatesV
+          }
         }
-        def estimatesV = result.estimatesV
-      }
     }
 
   }

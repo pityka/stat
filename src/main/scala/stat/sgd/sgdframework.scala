@@ -58,13 +58,14 @@ object Sgd extends StrictLogging {
       missingMode: MissingMode = DropSample,
       addIntercept: Boolean = true,
       maxIterations: Int = 100000,
-      minEpochs: Int = 2,
+      minEpochs: Double = 2d,
       convergedAverage: Int = 50,
       epsilon: Double = 1E-6,
       standardize: Boolean = true,
       rng: scala.util.Random = new scala.util.Random(42)
-  )(implicit sdf: DataSourceFactory[FrameData[RX]]): NamedSgdResult[E, P] = {
-    val result = optimize(
+  )(implicit sdf: DataSourceFactory[FrameData[RX]])
+    : Option[NamedSgdResult[E, P]] =
+    optimize(
       FrameData(f, yKey, missingMode, addIntercept, standardize, f.numRows),
       obj,
       pen,
@@ -73,17 +74,16 @@ object Sgd extends StrictLogging {
       minEpochs,
       convergedAverage,
       epsilon,
-      rng)
-
-    val idx =
-      obj
-        .adaptParameterNames(
-          if (addIntercept)
-            ("intercept" +: f.colIx.toSeq.filter(_ != yKey))
-          else f.colIx.toSeq.filter(_ != yKey))
-        .toIndex
-    NamedSgdResult(result, idx)
-  }
+      rng).map { result =>
+      val idx =
+        obj
+          .adaptParameterNames(
+            if (addIntercept)
+              ("intercept" +: f.colIx.toSeq.filter(_ != yKey))
+            else f.colIx.toSeq.filter(_ != yKey))
+          .toIndex
+      NamedSgdResult(result, idx)
+    }
 
   def optimize[D, I <: ItState, E, P](
       data: D,
@@ -91,11 +91,11 @@ object Sgd extends StrictLogging {
       pen: Penalty[_],
       upd: Updater[I],
       maxIterations: Int,
-      minEpochs: Int,
+      minEpochs: Double,
       convergedAverage: Int,
       epsilon: Double,
       rng: scala.util.Random
-  )(implicit dsf: DataSourceFactory[D]): SgdResult[E, P] =
+  )(implicit dsf: DataSourceFactory[D]): Option[SgdResult[E, P]] =
     optimize(dsf.apply(data, None, rng),
              obj,
              pen,
@@ -111,10 +111,10 @@ object Sgd extends StrictLogging {
       pen: Penalty[_],
       updater: Updater[I],
       maxIterations: Int,
-      minEpochs: Int,
+      minEpochs: Double,
       convergedAverage: Int,
       epsilon: Double
-  ): SgdResult[E, P] = {
+  ): Option[SgdResult[E, P]] = {
 
     val data: Iterator[Batch] = dataSource.training.flatten
     val start = obj.start(dataSource.numCols)
@@ -123,7 +123,7 @@ object Sgd extends StrictLogging {
                   max: Int,
                   min: Int,
                   tail: Int,
-                  epsilon: Double): Vec[Double] = {
+                  epsilon: Double): Option[Vec[Double]] = {
       val t = from(start).zipWithIndex
         .take(max)
         .drop(min)
@@ -131,9 +131,14 @@ object Sgd extends StrictLogging {
         .take(tail)
         .toVector
 
-      logger.debug("Converged after {} iterations", t.last._2 + 1)
+      if (t.isEmpty) {
+        logger.warn("Did not converge after {} iterations", max)
+        None
+      } else {
+        logger.debug("Converged after {} iterations", t.last._2 + 1)
 
-      t.map(_._1.point).reduce(_ + _) / t.size
+        Some(t.map(_._1.point).reduce(_ + _) / t.size)
+      }
 
     }
 
@@ -152,12 +157,13 @@ object Sgd extends StrictLogging {
       loop(f1)
     }
 
-    SgdResult(iteration(start,
-                        maxIterations,
-                        minEpochs * dataSource.batchPerEpoch,
-                        convergedAverage,
-                        epsilon),
-              obj)
+    iteration(start,
+              maxIterations,
+              (minEpochs * dataSource.batchPerEpoch).toInt + 1,
+              convergedAverage,
+              epsilon).map { r =>
+      SgdResult(r, obj)
+    }
 
   }
 

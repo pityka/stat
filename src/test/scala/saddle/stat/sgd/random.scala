@@ -118,7 +118,7 @@ class MNLRRandomSuite extends FunSuite {
       rng
     )
     println(fitFista)
-    assert(fitFista._1.misc > 0.75)
+    assert(fitFista._1.misc._1 > 0.75)
 
   }
 }

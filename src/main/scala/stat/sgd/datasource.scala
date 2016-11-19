@@ -162,7 +162,7 @@ trait DataSourceFactories extends StrictLogging {
               def next = {
 
                 val idx2 = idx(
-                  c to math.min(idx.length - 1, c + batchSize): _*)
+                  c until math.min(idx.length - 1, c + batchSize): _*)
                 c += batchSize
 
                 logger.trace("New batch of size {} ", idx2.length)

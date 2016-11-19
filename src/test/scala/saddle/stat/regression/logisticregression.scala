@@ -67,11 +67,13 @@ class LogRegSuite extends FunSuite {
     val fit = LogisticRegression.logisticRegression(data, "y")
 
     val fit1 =
-      sgd.Sgd.optimize(data,
-                       "y",
-                       sgd.LogisticRegression,
-                       sgd.L2(0d),
-                       sgd.NewtonUpdater)
+      sgd.Sgd
+        .optimize(data,
+                  "y",
+                  sgd.LogisticRegression,
+                  sgd.L2(0d),
+                  sgd.NewtonUpdater)
+        .get
 
     assert(
       fit1.estimatesV.roundTo(5) == Vec(-0.0148874586, -0.2756813856547127)

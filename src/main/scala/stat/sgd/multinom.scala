@@ -4,7 +4,7 @@ import org.saddle._
 import org.saddle.linalg._
 
 case class MultinomialLogisticRegression(numberOfClasses: Int)
-    extends ObjectiveFunction[Double, Vec[Double]] {
+    extends ObjectiveFunction[(Double, Int), Vec[Double]] {
   assert(numberOfClasses > 1)
 
   val C = numberOfClasses - 1
@@ -305,7 +305,7 @@ case class MultinomialLogisticRegression(numberOfClasses: Int)
     val accuracy =
       hard.zipMap(batch.y)((p, y) => if (p == y) 1.0 else 0.0).mean
 
-    accuracy
+    (accuracy, batch.y.length)
   }
 
 }

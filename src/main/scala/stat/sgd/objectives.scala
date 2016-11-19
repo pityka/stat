@@ -67,7 +67,7 @@ object LinearRegression extends ObjectiveFunction[Double, Double] {
 }
 
 object LogisticRegression
-    extends ObjectiveFunction[(Double, Double, Double), Double] {
+    extends ObjectiveFunction[(Double, Double, Double, Int), Double] {
   def adaptPenalizationMask(batch: Batch): Vec[Double] = batch.penalizationMask
   def adaptParameterNames(s: Seq[String]): Seq[String] = s
 
@@ -136,7 +136,7 @@ object LogisticRegression
     val precision = tp / (tp + fp)
     val recall = tp / batch.y.sum
 
-    (accuracy, precision, recall)
+    (accuracy, precision, recall, batch.y.length)
   }
 
 }

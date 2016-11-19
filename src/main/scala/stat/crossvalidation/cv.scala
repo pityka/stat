@@ -6,11 +6,11 @@ import scala.util.Random
 case class EvalR[E](obj: Double, misc: E)
 
 trait Train2[EvalRes] {
-  def train(idx: Vec[Int]): Eval[EvalRes]
+  def train(idx: Vec[Int]): Option[Eval[EvalRes]]
 }
 
 trait Train[EvalRes, Hyper] {
-  def train(idx: Vec[Int], hyper: Hyper): Eval[EvalRes]
+  def train(idx: Vec[Int], hyper: Hyper): Option[Eval[EvalRes]]
 }
 
 trait HyperParameterSearch[H] {
@@ -21,7 +21,7 @@ trait HyperParameterSearch[H] {
       min: Double,
       max: Double,
       n: Int
-  ): H
+  ): Option[H]
 }
 
 object Train {
@@ -31,16 +31,17 @@ object Train {
                          max: Double,
                          n: Int,
                          search: HyperParameterSearch[H]) = new Train2[E] {
-    def train(idx: Vec[Int]): Eval[E] = {
-      val opt = search(
+    def train(idx: Vec[Int]): Option[Eval[E]] = {
+      search(
         idx,
         t,
         split,
         min,
         max,
         n
-      )
-      t.train(idx, opt)
+      ).flatMap { opt =>
+        t.train(idx, opt)
+      }
     }
   }
 }
