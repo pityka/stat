@@ -20,10 +20,7 @@ class LMRandomSuite extends FunSuite {
         .generate(betas, design, () => rng.nextDouble) + vec.randn(samples) * 0
 
     val fitFista = Cv.fitWithCV(
-      MatrixData(design,
-                 ly,
-                 penalizationMask = vec.ones(columns),
-                 batchSize = design.numRows),
+      MatrixData(design, ly, penalizationMask = vec.ones(columns)),
       sgd.LinearRegression,
       L1(1.0),
       FistaUpdater,
@@ -37,6 +34,8 @@ class LMRandomSuite extends FunSuite {
       minEpochs = 1,
       convergedAverage = 2,
       epsilon = 1E-2,
+      batchSize = design.numRows,
+      maxEvalSize = design.numRows,
       rng = rng
     )
     println(fitFista)
@@ -48,7 +47,7 @@ class LMRandomSuite extends FunSuite {
 
 class LRRandomSuite extends FunSuite {
   slogging.LoggerConfig.factory = slogging.PrintLoggerFactory()
-  slogging.LoggerConfig.level = slogging.LogLevel.DEBUG
+  slogging.LoggerConfig.level = slogging.LogLevel.TRACE
   test("random ") {
     val samples = 1000
     val columns = 10000
@@ -59,10 +58,7 @@ class LRRandomSuite extends FunSuite {
         .generate(betas, design, () => rng.nextDouble) + vec.randn(samples) * 0
 
     val fitFista = Cv.fitWithCV(
-      MatrixData(design,
-                 ly,
-                 penalizationMask = vec.ones(columns),
-                 batchSize = design.numRows),
+      MatrixData(design, ly, penalizationMask = vec.ones(columns)),
       sgd.LogisticRegression,
       ElasticNet(1.0, 1.0),
       FistaUpdater,
@@ -76,6 +72,8 @@ class LRRandomSuite extends FunSuite {
       minEpochs = 1,
       convergedAverage = 2,
       epsilon = 1E-3,
+      batchSize = design.numRows,
+      maxEvalSize = design.numRows,
       rng
     )
     println(fitFista)
@@ -98,10 +96,7 @@ class MNLRRandomSuite extends FunSuite {
         .generate(betas, design, () => rng.nextDouble) + vec.randn(samples) * 0
 
     val fitFista = Cv.fitWithCV(
-      MatrixData(design,
-                 ly,
-                 penalizationMask = vec.ones(columns),
-                 batchSize = design.numRows),
+      MatrixData(design, ly, penalizationMask = vec.ones(columns)),
       sgd.MultinomialLogisticRegression(2),
       ElasticNet(1.0, 1.0),
       FistaUpdater,
@@ -115,6 +110,8 @@ class MNLRRandomSuite extends FunSuite {
       minEpochs = 1,
       convergedAverage = 2,
       epsilon = 1E-3,
+      batchSize = design.numRows,
+      maxEvalSize = design.numRows,
       rng
     )
     println(fitFista)

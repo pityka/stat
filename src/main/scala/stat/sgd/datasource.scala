@@ -17,24 +17,22 @@ case class DataSource(
 
 case class MatrixData(trainingX: Mat[Double],
                       trainingY: Vec[Double],
-                      batchSize: Int,
                       penalizationMask: Vec[Double])
 
 case class SparseMatrixData(trainingX: SMat,
                             trainingY: SVec,
-                            batchSize: Int,
                             penalizationMask: Vec[Double])
 
 case class FrameData[RX: ST: ORD](f: Frame[RX, String, Double],
                                   yKey: String,
                                   missingMode: MissingMode = DropSample,
                                   addIntercept: Boolean = true,
-                                  standardize: Boolean = false,
-                                  batchSize: Int)
+                                  standardize: Boolean = false)
 
 trait DataSourceFactory[T] {
   def apply(t: T,
             allowedIdx: Option[Vec[Int]],
+            batchSize: Int,
             rng: scala.util.Random): DataSource
 }
 
@@ -43,6 +41,7 @@ trait DataSourceFactories extends StrictLogging {
   implicit def matrixDataSource = new DataSourceFactory[MatrixData] {
     def apply(t: MatrixData,
               allowedIdx2: Option[Vec[Int]],
+              batchSize: Int,
               rng: scala.util.Random): DataSource = {
       import t._
 
@@ -101,6 +100,7 @@ trait DataSourceFactories extends StrictLogging {
       def apply(
           data: FrameData[RX],
           allowedIdx2: Option[Vec[Int]],
+          batchSize1: Int,
           rng: scala.util.Random
       ): DataSource = {
         import data._
@@ -108,10 +108,11 @@ trait DataSourceFactories extends StrictLogging {
         val (x, y, std) =
           createDesignMatrix(f, yKey, missingMode, addIntercept)
 
+        val batchSize = math.min(batchSize1, x.numRows)
+
         implicitly[DataSourceFactory[MatrixData]].apply(
           MatrixData(trainingX = x,
                      trainingY = y,
-                     batchSize = math.min(batchSize, x.numRows),
                      penalizationMask =
                        if (standardize)
                          std.toSeq.zipWithIndex
@@ -119,6 +120,7 @@ trait DataSourceFactories extends StrictLogging {
                            .toVec
                        else Vec(0d +: vec.ones(x.numCols - 1).toSeq: _*)),
           allowedIdx = None,
+          batchSize = batchSize,
           rng = rng
         )
 
@@ -142,6 +144,7 @@ trait DataSourceFactories extends StrictLogging {
     new DataSourceFactory[SparseMatrixData] {
       def apply(t: SparseMatrixData,
                 allowedIdx2: Option[Vec[Int]],
+                batchSize: Int,
                 rng: scala.util.Random): DataSource = {
         import t._
         val cidx = sparse.colIx(trainingX)

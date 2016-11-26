@@ -12,6 +12,7 @@ import stat.crossvalidation.{
   EvalR,
   HyperParameterSearch
 }
+import slogging.StrictLogging
 
 object Cv {
 
@@ -38,26 +39,24 @@ object Cv {
   )(implicit dsf: DataSourceFactory[FrameData[RX]])
     : (EvalR[E], NamedSgdResult[E, P]) = {
 
-    val (eval, result) = fitWithCV(FrameData(data,
-                                             yKey,
-                                             missingMode,
-                                             addIntercept,
-                                             standardize,
-                                             data.numRows),
-                                   obj,
-                                   pen,
-                                   upd,
-                                   trainRatio,
-                                   split,
-                                   search,
-                                   hMin,
-                                   hMax,
-                                   hN,
-                                   maxIterations,
-                                   minEpochs,
-                                   convergedAverage,
-                                   epsilon,
-                                   rng)
+    val (eval, result) = fitWithCV(
+      FrameData(data, yKey, missingMode, addIntercept, standardize),
+      obj,
+      pen,
+      upd,
+      trainRatio,
+      split,
+      search,
+      hMin,
+      hMax,
+      hN,
+      maxIterations,
+      minEpochs,
+      convergedAverage,
+      epsilon,
+      data.numRows,
+      data.numRows,
+      rng)
 
     val idx =
       obj
@@ -85,6 +84,8 @@ object Cv {
       minEpochs: Double,
       convergedAverage: Int,
       epsilon: Double,
+      batchSize: Int,
+      maxEvalSize: Int,
       rng: scala.util.Random
   )(implicit dsf: DataSourceFactory[D]): (EvalR[E], SgdResult[E, P]) = {
     val training = train(data,
@@ -95,11 +96,13 @@ object Cv {
                          minEpochs,
                          convergedAverage,
                          epsilon,
+                         batchSize,
+                         maxEvalSize,
                          rng)
 
     val nested = Train.nestedSearch(training, split, hMin, hMax, hN, search)
 
-    val allidx = dsf.apply(data, None, rng).allidx
+    val allidx = dsf.apply(data, None, batchSize, rng).allidx
 
     val (eval, estimates) = trainOnTestEvalOnHoldout(
       allidx,
@@ -121,34 +124,47 @@ object Cv {
       minEpochs: Double,
       convergedAverage: Int,
       epsilon: Double,
+      batchSize: Int,
+      evalBatchSize: Int,
       rng: scala.util.Random
-  )(implicit dsf: DataSourceFactory[D]): Train[E, H] = new Train[E, H] {
-    def train(idx: Vec[Int], hyper: H): Option[Eval[E]] = {
+  )(implicit dsf: DataSourceFactory[D]): Train[E, H] =
+    new Train[E, H] with StrictLogging {
+      def train(idx: Vec[Int], hyper: H): Option[Eval[E]] = {
+        logger.trace("Train on {}", idx.length)
+        Sgd
+          .optimize(dsf.apply(data, Some(idx), batchSize, rng),
+                    obj,
+                    pen.withHyperParameter(hyper),
+                    upd,
+                    maxIterations,
+                    minEpochs,
+                    convergedAverage,
+                    epsilon)
+          .map { result =>
+            new Eval[E] {
+              def eval(idx: Vec[Int]): EvalR[E] = {
 
-      Sgd
-        .optimize(dsf.apply(data, Some(idx), rng),
-                  obj,
-                  pen.withHyperParameter(hyper),
-                  upd,
-                  maxIterations,
-                  minEpochs,
-                  convergedAverage,
-                  epsilon)
-        .map { result =>
-          new Eval[E] {
-            def eval(idx: Vec[Int]): EvalR[E] = {
-              val batch: Batch = dsf(data, Some(idx), rng).training.next.next
+                val batch: Batch = dsf(data,
+                                       Some(idx),
+                                       batchSize =
+                                         math.min(idx.length, evalBatchSize),
+                                       rng).training.next.next
 
-              val obj = result.evaluateFit(batch)
-              val e = result.evaluateFit2(batch)
-              EvalR(obj, e)
+                val obj = result.evaluateFit(batch)
+                val e = result.evaluateFit2(batch)
+                logger.debug("Eval on {} out of {}: obj - {}, misc - {}",
+                             math.min(idx.length, evalBatchSize),
+                             idx.length,
+                             obj,
+                             e)
+                EvalR(obj, e)
 
+              }
+              def estimatesV = result.estimatesV
             }
-            def estimatesV = result.estimatesV
           }
-        }
-    }
+      }
 
-  }
+    }
 
 }

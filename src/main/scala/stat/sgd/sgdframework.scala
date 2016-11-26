@@ -65,16 +65,16 @@ object Sgd extends StrictLogging {
       rng: scala.util.Random = new scala.util.Random(42)
   )(implicit sdf: DataSourceFactory[FrameData[RX]])
     : Option[NamedSgdResult[E, P]] =
-    optimize(
-      FrameData(f, yKey, missingMode, addIntercept, standardize, f.numRows),
-      obj,
-      pen,
-      upd,
-      maxIterations,
-      minEpochs,
-      convergedAverage,
-      epsilon,
-      rng).map { result =>
+    optimize(FrameData(f, yKey, missingMode, addIntercept, standardize),
+             obj,
+             pen,
+             upd,
+             maxIterations,
+             minEpochs,
+             convergedAverage,
+             epsilon,
+             f.numRows,
+             rng).map { result =>
       val idx =
         obj
           .adaptParameterNames(
@@ -94,9 +94,10 @@ object Sgd extends StrictLogging {
       minEpochs: Double,
       convergedAverage: Int,
       epsilon: Double,
+      batchSize: Int,
       rng: scala.util.Random
   )(implicit dsf: DataSourceFactory[D]): Option[SgdResult[E, P]] =
-    optimize(dsf.apply(data, None, rng),
+    optimize(dsf.apply(data, None, batchSize, rng),
              obj,
              pen,
              upd,
