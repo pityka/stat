@@ -3,7 +3,7 @@ package stat.regression
 import org.saddle._
 import org.saddle.linalg._
 import scala.util.{Try, Success, Failure}
-
+import stat.matops._
 case class LinearRegressionResult(
     betas: Vec[Double],
     sds: Vec[Double],
@@ -37,7 +37,9 @@ case class NamedLinearRegressionResult[I](
   def predict(v: Vec[Double]): Double =
     v dot betas
 
-  def predict(m: Mat[Double]): Vec[Double] = (m mm betas).col(0)
+  def predict(m: Mat[Double]): Vec[Double] = m mv betas
+
+  def predict[T: MatOps](m: T): Vec[Double] = m mv betas
 
   def covariates = parameterNames.toSeq.map(x => x -> covariate(x).get).toMap
 

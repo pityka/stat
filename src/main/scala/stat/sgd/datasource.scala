@@ -6,10 +6,10 @@ import stat.regression.{MissingMode, DropSample}
 import slogging.StrictLogging
 import stat.sparse._
 import stat._
-
-case class Batch(x: Mat[Double], y: Vec[Double], penalizationMask: Vec[Double])
-case class DataSource(
-    training: Iterator[Iterator[Batch]],
+import stat.matops._
+case class Batch[M](x: M, y: Vec[Double], penalizationMask: Vec[Double])
+case class DataSource[M](
+    training: Iterator[Iterator[Batch[M]]],
     numCols: Int,
     allidx: Vec[Int],
     batchPerEpoch: Int
@@ -29,80 +29,85 @@ case class FrameData[RX: ST: ORD](f: Frame[RX, String, Double],
                                   addIntercept: Boolean = true,
                                   standardize: Boolean = false)
 
-trait DataSourceFactory[T] {
+trait DataSourceFactory[T, M] {
+  implicit def ops: MatOps[M]
   def apply(t: T,
             allowedIdx: Option[Vec[Int]],
             batchSize: Int,
-            rng: scala.util.Random): DataSource
+            rng: scala.util.Random): DataSource[M]
 }
 
 trait DataSourceFactories extends StrictLogging {
 
-  implicit def matrixDataSource = new DataSourceFactory[MatrixData] {
-    def apply(t: MatrixData,
-              allowedIdx2: Option[Vec[Int]],
-              batchSize: Int,
-              rng: scala.util.Random): DataSource = {
-      import t._
+  implicit def matrixDataSource =
+    new DataSourceFactory[MatrixData, Mat[Double]] {
+      implicit val ops = DenseMatOps
+      def apply(t: MatrixData,
+                allowedIdx2: Option[Vec[Int]],
+                batchSize: Int,
+                rng: scala.util.Random): DataSource[Mat[Double]] = {
+        import t._
 
-      val allowedIdx = allowedIdx2.getOrElse(0 until trainingX.numRows toVec)
+        val allowedIdx = allowedIdx2.getOrElse(0 until trainingX.numRows toVec)
 
-      val fullBatch =
-        if (batchSize >= allowedIdx.length)
-          Some(
-            Batch(trainingX.takeRows(allowedIdx),
-                  trainingY(allowedIdx),
-                  penalizationMask))
-        else None
+        val fullBatch =
+          if (batchSize >= allowedIdx.length)
+            Some(
+              Batch(trainingX.takeRows(allowedIdx),
+                    trainingY(allowedIdx),
+                    penalizationMask))
+          else None
 
-      val iter = new Iterator[Iterator[Batch]] {
+        val iter = new Iterator[Iterator[Batch[Mat[Double]]]] {
 
-        def hasNext = true
-        def next = {
-          new Iterator[Batch] {
+          def hasNext = true
+          def next = {
+            new Iterator[Batch[Mat[Double]]] {
 
-            var c = 0
-            val idx = rng.shuffle(allowedIdx.toSeq).toVec
+              var c = 0
+              val idx = rng.shuffle(allowedIdx.toSeq).toVec
 
-            def hasNext = c < idx.length - 1
-            def next = {
-              if (fullBatch.isDefined) {
-                c += batchSize
-                logger.trace("Full batch of size {} (no copy)", idx.length)
-                fullBatch.get
-              } else {
+              def hasNext = c < idx.length - 1
+              def next = {
+                if (fullBatch.isDefined) {
+                  c += batchSize
+                  logger.trace("Full batch of size {} (no copy)", idx.length)
+                  fullBatch.get
+                } else {
 
-                val idx2 = idx(
-                  c to math.min(idx.length - 1, c + batchSize): _*)
-                c += batchSize
+                  val idx2 = idx(
+                    c to math.min(idx.length - 1, c + batchSize): _*)
+                  c += batchSize
 
-                logger.trace("New batch of size {} ", idx2.length)
+                  logger.trace("New batch of size {} ", idx2.length)
 
-                Batch(trainingX.takeRows(idx2),
-                      trainingY(idx2),
-                      penalizationMask)
+                  Batch(trainingX.takeRows(idx2),
+                        trainingY(idx2),
+                        penalizationMask)
+                }
+
               }
-
             }
           }
         }
+        DataSource(iter,
+                   trainingX.numCols,
+                   (0 until trainingX.numRows).toVec,
+                   allowedIdx.length / batchSize + 1)
       }
-      DataSource(iter,
-                 trainingX.numCols,
-                 (0 until trainingX.numRows).toVec,
-                 allowedIdx.length / batchSize + 1)
+
     }
 
-  }
-
   implicit def frameDataSource[RX: ST: ORD] =
-    new DataSourceFactory[FrameData[RX]] {
+    new DataSourceFactory[FrameData[RX], Mat[Double]] {
+      implicit val ops = DenseMatOps
+
       def apply(
           data: FrameData[RX],
           allowedIdx2: Option[Vec[Int]],
           batchSize1: Int,
           rng: scala.util.Random
-      ): DataSource = {
+      ): DataSource[Mat[Double]] = {
         import data._
 
         val (x, y, std) =
@@ -110,7 +115,7 @@ trait DataSourceFactories extends StrictLogging {
 
         val batchSize = math.min(batchSize1, x.numRows)
 
-        implicitly[DataSourceFactory[MatrixData]].apply(
+        implicitly[DataSourceFactory[MatrixData, Mat[Double]]].apply(
           MatrixData(trainingX = x,
                      trainingY = y,
                      penalizationMask =
@@ -141,38 +146,40 @@ trait DataSourceFactories extends StrictLogging {
   }
 
   implicit def sparseMatrixDataSource =
-    new DataSourceFactory[SparseMatrixData] {
+    new DataSourceFactory[SparseMatrixData, SMat] {
+      implicit val ops: MatOps[SMat] = ???
+
       def apply(t: SparseMatrixData,
                 allowedIdx2: Option[Vec[Int]],
                 batchSize: Int,
-                rng: scala.util.Random): DataSource = {
+                rng: scala.util.Random): DataSource[SMat] = {
         import t._
         val cidx = sparse.colIx(trainingX)
 
         val allowedIdx =
           allowedIdx2.getOrElse(0 until sparse.numRows(trainingX) toVec)
 
-        val iter = new Iterator[Iterator[Batch]] {
+        val iter = new Iterator[Iterator[Batch[SMat]]] {
 
           def hasNext = true
           def next = {
-            new Iterator[Batch] {
+            new Iterator[Batch[SMat]] {
 
               var c = 0
               val idx = rng.shuffle(allowedIdx.toSeq).toVec
 
               def hasNext = c < idx.length - 1
-              def next = {
+              def next: Batch[SMat] = {
 
                 val idx2 = idx(
                   c until math.min(idx.length - 1, c + batchSize): _*)
                 c += batchSize
 
                 logger.trace("New batch of size {} ", idx2.length)
-
-                Batch(sparse.dense(trainingX, idx2, cidx),
-                      sparse.dense(trainingY, idx2),
-                      penalizationMask)
+                ???
+                // Batch(sparse.dense(trainingX, idx2, cidx),
+                //       sparse.dense(trainingY, idx2),
+                //       penalizationMask)
               }
 
             }

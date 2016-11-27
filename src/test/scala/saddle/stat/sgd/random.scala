@@ -47,7 +47,7 @@ class LMRandomSuite extends FunSuite {
 
 class LRRandomSuite extends FunSuite {
   slogging.LoggerConfig.factory = slogging.PrintLoggerFactory()
-  slogging.LoggerConfig.level = slogging.LogLevel.TRACE
+  slogging.LoggerConfig.level = slogging.LogLevel.DEBUG
   test("random ") {
     val samples = 1000
     val columns = 10000

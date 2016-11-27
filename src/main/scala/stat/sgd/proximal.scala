@@ -3,6 +3,7 @@ package stat.sgd
 import org.saddle._
 import org.saddle.linalg._
 import scala.util._
+import stat.matops._
 
 case class FistaItState(point: Vec[Double],
                         convergence: Double,
@@ -19,11 +20,11 @@ case class FistaItState(point: Vec[Double],
   * ref: https://web.iem.technion.ac.il/images/user-files/becka/papers/71654.pdf
   */
 object FistaUpdater extends Updater[FistaItState] {
-  def next(x: Vec[Double],
-           batch: Batch,
-           obj: ObjectiveFunction[_, _],
-           pen: Penalty[_],
-           last: Option[FistaItState]): FistaItState = {
+  def next[M: MatOps](x: Vec[Double],
+                      batch: Batch[M],
+                      obj: ObjectiveFunction[_, _],
+                      pen: Penalty[_],
+                      last: Option[FistaItState]): FistaItState = {
 
     val penalizationMask = obj.adaptPenalizationMask(batch)
 

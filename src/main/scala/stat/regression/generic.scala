@@ -4,6 +4,7 @@ import stat._
 import org.saddle._
 import org.saddle.linalg._
 import scala.util.{Try, Success, Failure}
+import stat.matops._
 
 sealed trait MissingMode
 case object DropSample extends MissingMode
@@ -63,6 +64,7 @@ trait Prediction[@specialized(Double) P] {
   def estimatesV: Vec[Double]
   def predict(v: Vec[Double]): P
   def predict(m: Mat[Double]): Vec[P]
+  def predict[T: MatOps](m: T): Vec[P]
 }
 
 trait NamedPrediction[@specialized(Double) P] extends Prediction[P] {

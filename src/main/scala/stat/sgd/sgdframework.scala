@@ -4,10 +4,11 @@ import org.saddle._
 import org.saddle.linalg._
 import stat.regression.{MissingMode, DropSample, Prediction, NamedPrediction}
 import slogging.StrictLogging
+import stat.matops._
 
 trait EvaluateFit[E, @specialized(Double) P] extends Prediction[P] {
-  def evaluateFit(batch: Batch): Double
-  def evaluateFit2(batch: Batch): E
+  def evaluateFit[T: MatOps](batch: Batch[T]): Double
+  def evaluateFit2[T: MatOps](batch: Batch[T]): E
 }
 
 trait ItState {
@@ -16,11 +17,11 @@ trait ItState {
 }
 
 trait Updater[I <: ItState] {
-  def next(x: Vec[Double],
-           b: Batch,
-           obj: ObjectiveFunction[_, _],
-           pen: Penalty[_],
-           last: Option[I]): I
+  def next[T: MatOps](x: Vec[Double],
+                      b: Batch[T],
+                      obj: ObjectiveFunction[_, _],
+                      pen: Penalty[_],
+                      last: Option[I]): I
 }
 
 case class SgdResult[E, P](
@@ -28,10 +29,11 @@ case class SgdResult[E, P](
     model: ObjectiveFunction[E, P]
 ) extends Prediction[P]
     with EvaluateFit[E, P] {
-  def predict(v: Vec[Double]) = model.predict(estimatesV, v)
-  def predict(m: Mat[Double]) = model.predict(estimatesV, m)
-  def evaluateFit(b: Batch): Double = model.apply(estimatesV, b)
-  def evaluateFit2(b: Batch): E = model.eval(estimatesV, b)
+  def predict(v: Vec[Double]) = predict(Mat(v).T).raw(0)
+  def predict(m: Mat[Double]) = model.predictMat(estimatesV, m)
+  def predict[T: MatOps](m: T) = model.predict(estimatesV, m)
+  def evaluateFit[T: MatOps](b: Batch[T]): Double = model.apply(estimatesV, b)
+  def evaluateFit2[T: MatOps](b: Batch[T]): E = model.eval(estimatesV, b)
 }
 
 case class NamedSgdResult[E, P](
@@ -43,8 +45,10 @@ case class NamedSgdResult[E, P](
   def estimatesV = raw.estimatesV
   def predict(v: Vec[Double]) = raw.predict(v)
   def predict(m: Mat[Double]) = raw.predict(m)
-  def evaluateFit(b: Batch): Double = raw.evaluateFit(b)
-  def evaluateFit2(b: Batch): E = raw.evaluateFit2(b)
+  def predict[T: MatOps](m: T) = raw.predict(m)
+
+  def evaluateFit[T: MatOps](b: Batch[T]): Double = raw.evaluateFit(b)
+  def evaluateFit2[T: MatOps](b: Batch[T]): E = raw.evaluateFit2(b)
 }
 
 object Sgd extends StrictLogging {
@@ -63,7 +67,7 @@ object Sgd extends StrictLogging {
       epsilon: Double = 1E-6,
       standardize: Boolean = true,
       rng: scala.util.Random = new scala.util.Random(42)
-  )(implicit sdf: DataSourceFactory[FrameData[RX]])
+  )(implicit sdf: DataSourceFactory[FrameData[RX], Mat[Double]])
     : Option[NamedSgdResult[E, P]] =
     optimize(FrameData(f, yKey, missingMode, addIntercept, standardize),
              obj,
@@ -74,7 +78,7 @@ object Sgd extends StrictLogging {
              convergedAverage,
              epsilon,
              f.numRows,
-             rng).map { result =>
+             rng)(DenseMatOps, sdf).map { result =>
       val idx =
         obj
           .adaptParameterNames(
@@ -85,7 +89,7 @@ object Sgd extends StrictLogging {
       NamedSgdResult(result, idx)
     }
 
-  def optimize[D, I <: ItState, E, P](
+  def optimize[D, I <: ItState, E, P, M: MatOps](
       data: D,
       obj: ObjectiveFunction[E, P],
       pen: Penalty[_],
@@ -96,7 +100,7 @@ object Sgd extends StrictLogging {
       epsilon: Double,
       batchSize: Int,
       rng: scala.util.Random
-  )(implicit dsf: DataSourceFactory[D]): Option[SgdResult[E, P]] =
+  )(implicit dsf: DataSourceFactory[D, M]): Option[SgdResult[E, P]] =
     optimize(dsf.apply(data, None, batchSize, rng),
              obj,
              pen,
@@ -106,8 +110,8 @@ object Sgd extends StrictLogging {
              convergedAverage,
              epsilon)
 
-  def optimize[I <: ItState, E, P](
-      dataSource: DataSource,
+  def optimize[I <: ItState, E, P, M: MatOps](
+      dataSource: DataSource[M],
       obj: ObjectiveFunction[E, P],
       pen: Penalty[_],
       updater: Updater[I],
@@ -117,7 +121,7 @@ object Sgd extends StrictLogging {
       epsilon: Double
   ): Option[SgdResult[E, P]] = {
 
-    val data: Iterator[Batch] = dataSource.training.flatten
+    val data: Iterator[Batch[M]] = dataSource.training.flatten
     val start = obj.start(dataSource.numCols)
 
     def iteration(start: Vec[Double],

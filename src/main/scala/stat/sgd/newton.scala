@@ -2,15 +2,16 @@ package stat.sgd
 
 import org.saddle._
 import org.saddle.linalg._
+import stat.matops._
 
 case class Iteration(point: Vec[Double], convergence: Double) extends ItState
 
 object NewtonUpdater extends Updater[Iteration] {
-  def next(b: Vec[Double],
-           batch: Batch,
-           obj: ObjectiveFunction[_, _],
-           pen: Penalty[_],
-           last: Option[Iteration]) = {
+  def next[M: MatOps](b: Vec[Double],
+                      batch: Batch[M],
+                      obj: ObjectiveFunction[_, _],
+                      pen: Penalty[_],
+                      last: Option[Iteration]) = {
 
     val penalizationMask = obj.adaptPenalizationMask(batch)
     val j = obj.jacobi(b, batch) - pen.jacobi(b, penalizationMask)

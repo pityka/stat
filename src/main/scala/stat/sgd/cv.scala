@@ -13,7 +13,7 @@ import stat.crossvalidation.{
   HyperParameterSearch
 }
 import slogging.StrictLogging
-
+import stat.matops._
 object Cv {
 
   def fitWithCV[RX: ST: ORD, I <: ItState, E, H, P](
@@ -36,27 +36,27 @@ object Cv {
       convergedAverage: Int,
       epsilon: Double,
       rng: scala.util.Random
-  )(implicit dsf: DataSourceFactory[FrameData[RX]])
+  )(implicit dsf: DataSourceFactory[FrameData[RX], Mat[Double]])
     : (EvalR[E], NamedSgdResult[E, P]) = {
 
-    val (eval, result) = fitWithCV(
-      FrameData(data, yKey, missingMode, addIntercept, standardize),
-      obj,
-      pen,
-      upd,
-      trainRatio,
-      split,
-      search,
-      hMin,
-      hMax,
-      hN,
-      maxIterations,
-      minEpochs,
-      convergedAverage,
-      epsilon,
-      data.numRows,
-      data.numRows,
-      rng)
+    val (eval, result) =
+      fitWithCV(FrameData(data, yKey, missingMode, addIntercept, standardize),
+                obj,
+                pen,
+                upd,
+                trainRatio,
+                split,
+                search,
+                hMin,
+                hMax,
+                hN,
+                maxIterations,
+                minEpochs,
+                convergedAverage,
+                epsilon,
+                data.numRows,
+                data.numRows,
+                rng)(dsf)
 
     val idx =
       obj
@@ -69,7 +69,7 @@ object Cv {
     (eval, NamedSgdResult(result, idx))
   }
 
-  def fitWithCV[D, I <: ItState, E, H, P](
+  def fitWithCV[D, I <: ItState, E, H, P, M](
       data: D,
       obj: ObjectiveFunction[E, P],
       pen: Penalty[H],
@@ -87,7 +87,9 @@ object Cv {
       batchSize: Int,
       maxEvalSize: Int,
       rng: scala.util.Random
-  )(implicit dsf: DataSourceFactory[D]): (EvalR[E], SgdResult[E, P]) = {
+  )(implicit dsf: DataSourceFactory[D, M]): (EvalR[E], SgdResult[E, P]) = {
+    import dsf.ops
+
     val training = train(data,
                          obj,
                          pen,
@@ -115,7 +117,7 @@ object Cv {
 
   }
 
-  def train[D, I <: ItState, E, H](
+  def train[D, I <: ItState, E, H, M](
       data: D,
       obj: ObjectiveFunction[E, _],
       pen: Penalty[H],
@@ -127,8 +129,9 @@ object Cv {
       batchSize: Int,
       evalBatchSize: Int,
       rng: scala.util.Random
-  )(implicit dsf: DataSourceFactory[D]): Train[E, H] =
+  )(implicit dsf: DataSourceFactory[D, M]): Train[E, H] =
     new Train[E, H] with StrictLogging {
+      import dsf.ops
       def train(idx: Vec[Int], hyper: H): Option[Eval[E]] = {
         logger.trace("Train on {}", idx.length)
         Sgd
@@ -144,11 +147,11 @@ object Cv {
             new Eval[E] {
               def eval(idx: Vec[Int]): EvalR[E] = {
 
-                val batch: Batch = dsf(data,
-                                       Some(idx),
-                                       batchSize =
-                                         math.min(idx.length, evalBatchSize),
-                                       rng).training.next.next
+                val batch: Batch[M] =
+                  dsf(data,
+                      Some(idx),
+                      batchSize = math.min(idx.length, evalBatchSize),
+                      rng).training.next.next
 
                 val obj = result.evaluateFit(batch)
                 val e = result.evaluateFit2(batch)

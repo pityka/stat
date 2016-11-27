@@ -4,7 +4,7 @@ import org.saddle._
 import org.saddle.linalg._
 import stat._
 import scala.util.{Try, Success, Failure}
-
+import stat.matops._
 case class LogisticRegressionResult(betas: Vec[Double],
                                     sds: Vec[Double],
                                     logLikelihood: LogLikelihood,
@@ -33,7 +33,10 @@ case class NamedLogisticRegressionResult[I](
   }
 
   def predict(m: Mat[Double]): Vec[Double] =
-    (m mm betas).col(0).map(x => math.exp(x)).map(x => x / (1 + x))
+    (m mv betas).map(x => math.exp(x)).map(x => x / (1 + x))
+
+  def predict[T: MatOps](m: T): Vec[Double] =
+    (m mv betas).map(x => math.exp(x)).map(x => x / (1 + x))
 
   def covariates = parameterNames.toSeq.map(x => x -> covariate(x).get).toMap
 

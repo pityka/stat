@@ -2,14 +2,14 @@ package stat.sgd
 
 import org.saddle._
 import org.saddle.linalg._
-
+import stat.matops._
 case class MultinomialLogisticRegression(numberOfClasses: Int)
     extends ObjectiveFunction[(Double, Int), Vec[Double]] {
   assert(numberOfClasses > 1)
 
   val C = numberOfClasses - 1
 
-  def adaptPenalizationMask(batch: Batch): Vec[Double] =
+  def adaptPenalizationMask[T](batch: Batch[T]): Vec[Double] =
     mat.repeat(batch.penalizationMask, C).contents
 
   def adaptParameterNames(s: Seq[String]): Seq[String] = s.flatMap { s =>
@@ -20,7 +20,7 @@ case class MultinomialLogisticRegression(numberOfClasses: Int)
 
   def start(cols: Int): Vec[Double] = vec.zeros(cols * C)
 
-  def apply(b: Vec[Double], batch: Batch): Double = {
+  def apply[T: MatOps](b: Vec[Double], batch: Batch[T]): Double = {
     val bm = Mat(batch.x.numCols, C, b)
 
     val xp = (batch.x mm bm).map(math.exp)
@@ -42,7 +42,7 @@ case class MultinomialLogisticRegression(numberOfClasses: Int)
 
   }
 
-  def jacobi(b: Vec[Double], batch: Batch): Vec[Double] = {
+  def jacobi[T: MatOps](b: Vec[Double], batch: Batch[T]): Vec[Double] = {
     val bm = Mat(batch.x.numCols, C, b)
 
     val xp = (batch.x mm bm).map(math.exp)
@@ -130,7 +130,7 @@ case class MultinomialLogisticRegression(numberOfClasses: Int)
   //   ar
   // }
 
-  def hessian(b: Vec[Double], batch: Batch): Mat[Double] = {
+  def hessian[T: MatOps](b: Vec[Double], batch: Batch[T]): Mat[Double] = {
     val bm: Mat[Double] = Mat(batch.x.numCols, C, b)
 
     val xp = (batch.x mm bm).map(math.exp)
@@ -201,7 +201,8 @@ case class MultinomialLogisticRegression(numberOfClasses: Int)
     * This is used only to set the minimum step size
     * This does not return the correct value but hopefully something close to it
     */
-  def minusHessianLargestEigenValue(b: Vec[Double], batch: Batch): Double = {
+  def minusHessianLargestEigenValue[T: MatOps](b: Vec[Double],
+                                               batch: Batch[T]): Double = {
 
     val bm: Mat[Double] = Mat(batch.x.numCols, C, b)
 
@@ -268,7 +269,7 @@ case class MultinomialLogisticRegression(numberOfClasses: Int)
     // (h * (-1)).eigenValuesSymm(1).raw(0)
   }
 
-  def predict(estimates: Vec[Double], data: Vec[Double]): Vec[Double] = {
+  def predictVec[V: VecOps](estimates: Vec[Double], data: V): Vec[Double] = {
     val bm = Mat(data.length, C, estimates)
 
     val denom = {
@@ -286,16 +287,25 @@ case class MultinomialLogisticRegression(numberOfClasses: Int)
     vec
   }
 
-  def predict(estimates: Vec[Double], data: Mat[Double]): Vec[Vec[Double]] =
+  def predictMat(estimates: Vec[Double], data: Mat[Double]): Vec[Vec[Double]] =
     Vec(data.rows.map { row =>
-      predict(estimates, row)
+      predictVec(estimates, row)(DenseVecOps)
     }: _*)
+
+  def predict[T](estimates: Vec[Double], data: T)(
+      implicit m: MatOps[T]): Vec[Vec[Double]] = {
+    // val p = new Pimp(data)(m)
+    // implicitly[m.V =:= p.V]
+    Vec(m.rows(data).map { row =>
+      predictVec(estimates, row)
+    }: _*)
+  }
 
   def generate(estimates: Vec[Double],
                data: Mat[Double],
                rng: () => Double): Vec[Double] = ???
 
-  def eval(estimates: Vec[Double], batch: Batch) = {
+  def eval[T: MatOps](estimates: Vec[Double], batch: Batch[T]) = {
     val predicted = predict(estimates, batch.x)
     val hard: Vec[Double] = predicted.map { v =>
       val base = 1.0 - v.sum

@@ -2,64 +2,70 @@ package stat.sgd
 
 import org.saddle._
 import org.saddle.linalg._
+import stat.matops._
 
 trait ObjectiveFunction[E, @specialized(Double) P] {
-  def jacobi(b: Vec[Double], batch: Batch): Vec[Double]
-  def hessian(p: Vec[Double], batch: Batch): Mat[Double]
-  def minusHessianLargestEigenValue(p: Vec[Double], batch: Batch): Double
-  def apply(b: Vec[Double], batch: Batch): Double
+  def jacobi[T: MatOps](b: Vec[Double], batch: Batch[T]): Vec[Double]
+  def hessian[T: MatOps](p: Vec[Double], batch: Batch[T]): Mat[Double]
+  def minusHessianLargestEigenValue[T: MatOps](p: Vec[Double],
+                                               batch: Batch[T]): Double
+  def apply[T: MatOps](b: Vec[Double], batch: Batch[T]): Double
   def start(cols: Int): Vec[Double]
 
-  def predict(estimates: Vec[Double], data: Vec[Double]): P
-  def predict(estimates: Vec[Double], data: Mat[Double]): Vec[P]
+  def predictMat(estimates: Vec[Double], data: Mat[Double]): Vec[P]
+  def predict[T: MatOps](estimates: Vec[Double], data: T): Vec[P]
 
   def generate(estimates: Vec[Double],
                data: Mat[Double],
                rng: () => Double): Vec[Double]
 
-  def eval(est: Vec[Double], batch: Batch): E
+  def eval[T: MatOps](est: Vec[Double], batch: Batch[T]): E
 
-  def adaptPenalizationMask(batch: Batch): Vec[Double]
+  def adaptPenalizationMask[T](batch: Batch[T]): Vec[Double]
   def adaptParameterNames(s: Seq[String]): Seq[String]
 }
 
 object LinearRegression extends ObjectiveFunction[Double, Double] {
-  def adaptPenalizationMask(batch: Batch): Vec[Double] = batch.penalizationMask
+  def adaptPenalizationMask[T](batch: Batch[T]): Vec[Double] =
+    batch.penalizationMask
   def adaptParameterNames(s: Seq[String]): Seq[String] = s
 
   def start(cols: Int): Vec[Double] = vec.zeros(cols)
 
-  def apply(b: Vec[Double], batch: Batch): Double = {
+  def apply[T: MatOps](b: Vec[Double], batch: Batch[T]): Double = {
     val yMinusXb = batch.y - (batch.x mv b)
     (yMinusXb vv yMinusXb) * (-1)
   }
 
-  def jacobi(b: Vec[Double], batch: Batch): Vec[Double] = {
+  def jacobi[T: MatOps](b: Vec[Double], batch: Batch[T]): Vec[Double] = {
     val y = batch.y
     val X = batch.x
     val yMinusXb = y - (X mv b)
     X tmv yMinusXb
   }
 
-  def hessian(p: Vec[Double], batch: Batch): Mat[Double] = {
+  def hessian[T: MatOps](p: Vec[Double], batch: Batch[T]): Mat[Double] = {
     batch.x.innerM * (-1)
   }
 
-  def minusHessianLargestEigenValue(p: Vec[Double], batch: Batch): Double = {
+  def minusHessianLargestEigenValue[T: MatOps](p: Vec[Double],
+                                               batch: Batch[T]): Double = {
     val s = batch.x.singularValues(1).raw(0)
     s * s
   }
   def predict(estimates: Vec[Double], data: Vec[Double]): Double =
     estimates dot data
-  def predict(estimates: Vec[Double], data: Mat[Double]): Vec[Double] =
+  def predictMat(estimates: Vec[Double], data: Mat[Double]): Vec[Double] =
+    (data mv estimates)
+  def predict[T: MatOps](estimates: Vec[Double], data: T): Vec[Double] =
     (data mv estimates)
 
   def generate(estimates: Vec[Double],
                data: Mat[Double],
                rng: () => Double): Vec[Double] =
-    predict(estimates, data)
+    predictMat(estimates, data)
 
-  def eval(estimates: Vec[Double], batch: Batch) = {
+  def eval[T: MatOps](estimates: Vec[Double], batch: Batch[T]) = {
     val p = predict(estimates, batch.x)
     stat.crossvalidation.rSquared(p, batch.y)
   }
@@ -68,36 +74,38 @@ object LinearRegression extends ObjectiveFunction[Double, Double] {
 
 object LogisticRegression
     extends ObjectiveFunction[(Double, Double, Double, Int), Double] {
-  def adaptPenalizationMask(batch: Batch): Vec[Double] = batch.penalizationMask
+  def adaptPenalizationMask[T](batch: Batch[T]): Vec[Double] =
+    batch.penalizationMask
   def adaptParameterNames(s: Seq[String]): Seq[String] = s
 
   def start(cols: Int): Vec[Double] = vec.zeros(cols)
 
-  def apply(b: Vec[Double], batch: Batch): Double = {
+  def apply[T: MatOps](b: Vec[Double], batch: Batch[T]): Double = {
     val Xb = (batch.x mv b)
     val yXb = batch.y * Xb
     val z = Xb.map(x => math.log(1d + math.exp(x)))
     (yXb - z).sum
   }
 
-  def getPi(b: Vec[Double], batch: Batch): Vec[Double] = {
+  def getPi[T: MatOps](b: Vec[Double], batch: Batch[T]): Vec[Double] = {
     val Xb = (batch.x mv b)
     val eXb = Xb.map(math.exp)
     eXb.map(e => e / (1d + e))
   }
 
-  def jacobi(b: Vec[Double], batch: Batch): Vec[Double] = {
+  def jacobi[T: MatOps](b: Vec[Double], batch: Batch[T]): Vec[Double] = {
     val pi: Vec[Double] = getPi(b, batch)
     (batch.x tmv (batch.y - pi).col(0))
   }
 
-  def hessian(b: Vec[Double], batch: Batch): Mat[Double] = {
+  def hessian[T: MatOps](b: Vec[Double], batch: Batch[T]): Mat[Double] = {
     val pi = getPi(b, batch)
     val w: Vec[Double] = pi * (pi * (-1) + 1.0)
     batch.x.mDiagFromLeft(w * (-1)) tmm batch.x
   }
 
-  def minusHessianLargestEigenValue(p: Vec[Double], batch: Batch): Double = {
+  def minusHessianLargestEigenValue[T: MatOps](p: Vec[Double],
+                                               batch: Batch[T]): Double = {
     val pi = getPi(p, batch)
     val w: Vec[Double] = (pi * (pi * (-1) + 1.0)).map(x => math.sqrt(x))
     val wx =
@@ -111,15 +119,18 @@ object LogisticRegression
     val e = math.exp(estimates dot data)
     e / (1 + e)
   }
-  def predict(estimates: Vec[Double], data: Mat[Double]): Vec[Double] =
+  def predictMat(estimates: Vec[Double], data: Mat[Double]): Vec[Double] =
+    (data mv estimates).map(math.exp).map(x => x / (1 + x))
+
+  def predict[T: MatOps](estimates: Vec[Double], data: T): Vec[Double] =
     (data mv estimates).map(math.exp).map(x => x / (1 + x))
 
   def generate(estimates: Vec[Double],
                data: Mat[Double],
                rng: () => Double): Vec[Double] =
-    predict(estimates, data).map(p => if (rng() < p) 1.0 else 0.0)
+    predictMat(estimates, data).map(p => if (rng() < p) 1.0 else 0.0)
 
-  def eval(estimates: Vec[Double], batch: Batch) = {
+  def eval[T: MatOps](estimates: Vec[Double], batch: Batch[T]) = {
     val p = predict(estimates, batch.x).map(x => if (x > 0.5) 1.0 else 0.0)
     val accuracy = p.zipMap(batch.y)(_ == _).map(x => if (x) 1.0 else 0.0).mean
 
