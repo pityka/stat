@@ -17,7 +17,6 @@ package object matops {
     def numCols: Int = op.numCols(t)
     def row(i: Int): Vec[Double] = op.row(t, i)
     def raw(i: Int, j: Int): Double = op.raw(t, i, j)
-    def rows: IndexedSeq[op.V] = op.rows(t)
 
     // implicit def vops: VecOps[V] = op.vops
   }
