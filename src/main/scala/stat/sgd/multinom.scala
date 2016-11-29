@@ -23,10 +23,13 @@ case class MultinomialLogisticRegression(numberOfClasses: Int)
   def apply[T: MatOps](b: Vec[Double], batch: Batch[T]): Double = {
     val bm = Mat(batch.x.numCols, C, b)
 
+    val mops = implicitly[MatOps[T]]
+    val vops: VecOps[mops.V] = mops.vops
+
     val xp = (batch.x mm bm).map(math.exp)
 
     (0 until batch.x.numRows).foldLeft(0d) { (sum, i) =>
-      val x: Vec[Double] = batch.x.row(i)
+      val x = mops.row(batch.x, i)
       val y: Double = batch.y.raw(i)
 
       val xpi = xp.row(i)
@@ -35,7 +38,7 @@ case class MultinomialLogisticRegression(numberOfClasses: Int)
 
       val f =
         if (y == 0d) 0d
-        else (x vv bm.col(y.toInt - 1))
+        else (vops.vv(x, bm.col(y.toInt - 1)))
 
       sum + f - math.log(denom)
     }
@@ -70,7 +73,7 @@ case class MultinomialLogisticRegression(numberOfClasses: Int)
 
       val t = y1 - (pi: Vec[Double])
 
-      (batch.x tmv t).col(0)
+      (batch.x tmv t)
 
     }): _*).contents
 
@@ -131,6 +134,7 @@ case class MultinomialLogisticRegression(numberOfClasses: Int)
   // }
 
   def hessian[T: MatOps](b: Vec[Double], batch: Batch[T]): Mat[Double] = {
+    val mops = implicitly[MatOps[T]]
     val bm: Mat[Double] = Mat(batch.x.numCols, C, b)
 
     val xp = (batch.x mm bm).map(math.exp)
@@ -173,7 +177,6 @@ case class MultinomialLogisticRegression(numberOfClasses: Int)
     def h(k: Int, j: Int, kp: Int, jp: Int, i: Int) = {
       val xik = batch.x.raw(i, k)
       val xikp = batch.x.raw(i, kp)
-      val x: Vec[Double] = batch.x.row(i)
       val xpi = xp.row(i)
       val xpis = xpi.sum
 
@@ -274,13 +277,13 @@ case class MultinomialLogisticRegression(numberOfClasses: Int)
 
     val denom = {
       (0 until C map { j =>
-        math.exp(data dot bm.col(j))
+        math.exp(data vv bm.col(j))
       }).sum + 1d
     }
 
     val vec =
       0 until bm.numCols map { j =>
-        val nom = math.exp(data dot bm.col(j))
+        val nom = math.exp(data vv bm.col(j))
         nom / denom
       } toVec
 

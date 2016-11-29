@@ -1,14 +1,18 @@
 package stat
 import org.saddle._
 package object sparse {
-  type SVec = Series[Int, Double]
   type SMat = IndexedSeq[SVec]
 
-  def length(sv: SVec): Int = sv.index.last.getOrElse(0) + 1
+  def length(sv: SVec): Int = sv.length
   def idx(sv: SVec): Vec[Int] = index.IndexIntRange(length(sv)).toVec
   def dense(sv: SVec): Vec[Double] = dense(sv, idx(sv))
   def dense(sv: SVec, idx: Vec[Int]): Vec[Double] =
-    idx.map(i => sv.first(i).getOrElse(0d))
+    idx.map(i => sv.values.first(i).getOrElse(0d))
+
+  def get(sv: SVec, idx: Int) =
+    if (idx >= sv.length || idx < 0)
+      throw new RuntimeException("index otu of range")
+    else sv.values.first(idx).getOrElse(0d)
 
   def numCols(sm: SMat): Int =
     if (sm.isEmpty) 0 else sm.map(x => length(x)).max

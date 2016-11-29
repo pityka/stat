@@ -20,7 +20,7 @@ case class MatrixData(trainingX: Mat[Double],
                       penalizationMask: Vec[Double])
 
 case class SparseMatrixData(trainingX: SMat,
-                            trainingY: SVec,
+                            trainingY: Vec[Double],
                             penalizationMask: Vec[Double])
 
 case class FrameData[RX: ST: ORD](f: Frame[RX, String, Double],
@@ -147,7 +147,7 @@ trait DataSourceFactories extends StrictLogging {
 
   implicit def sparseMatrixDataSource =
     new DataSourceFactory[SparseMatrixData, SMat] {
-      implicit val ops: MatOps[SMat] = ???
+      implicit val ops: MatOps[SMat] = SparseMatOps
 
       def apply(t: SparseMatrixData,
                 allowedIdx2: Option[Vec[Int]],
@@ -176,10 +176,10 @@ trait DataSourceFactories extends StrictLogging {
                 c += batchSize
 
                 logger.trace("New batch of size {} ", idx2.length)
-                ???
-                // Batch(sparse.dense(trainingX, idx2, cidx),
-                //       sparse.dense(trainingY, idx2),
-                //       penalizationMask)
+
+                Batch(idx2.map(i => trainingX(i)).toSeq.toIndexedSeq,
+                      trainingY(idx2),
+                      penalizationMask)
               }
 
             }

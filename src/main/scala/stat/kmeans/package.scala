@@ -15,8 +15,8 @@ package object kmeans {
     val projections = 0 until max combinations (2) map { g =>
       val c1 = g(0)
       val c2 = g(1)
-      val col1 = data.map(s => s.first(c1).getOrElse(0d)).toVec
-      val col2 = data.map(s => s.first(c2).getOrElse(0d)).toVec
+      val col1 = data.map(s => s.values.first(c1).getOrElse(0d)).toVec
+      val col2 = data.map(s => s.values.first(c2).getOrElse(0d)).toVec
       xyplot(
         Mat(col1, col2, res.clusters.map(_.toDouble)) -> point(
           labelText = false,
@@ -28,7 +28,7 @@ package object kmeans {
   }
 
   def euclid(v1: SVec, v2: SVec) = {
-    val (j1, j2) = v1.align(v2, index.OuterJoin)
+    val (j1, j2) = v1.values.align(v2.values, index.OuterJoin)
     val d = (j1.fillNA(_ => 0d) - j2.fillNA(_ => 0d)).toVec
     math.sqrt(d dot d)
   }
@@ -40,10 +40,10 @@ package object kmeans {
   }
 
   def colmeans(data: SMat): SVec = {
-    val keys = data.flatMap(_.index.toSeq).distinct
-    keys.map { k =>
-      k -> data.map(s => s.first(k).getOrElse(0d)).toVec.mean
-    }.toSeries
+    val keys = data.flatMap(_.values.index.toSeq).distinct
+    SVec(keys.map { k =>
+      k -> data.map(s => s.values.first(k).getOrElse(0d)).toVec.mean
+    }.toSeries, keys.size)
   }
 
   def assignAll(data: SMat, means: SMat): Seq[Vec[Int]] =
@@ -82,8 +82,11 @@ package object kmeans {
   }
 
   def apply(data: Mat[Double], init: Mat[Double], it: Int): KMeansResult =
-    apply(data.rows.map(x => Series(x)), init.rows.map(x => Series(x)), it)
+    apply(data.rows.map(x => SVec(Series(x), x.length)),
+          init.rows.map(x => SVec(Series(x), x.length)),
+          it)
 
-  def matToSparse(data: Mat[Double]) = data.rows.map(x => Series(x))
+  def matToSparse(data: Mat[Double]) =
+    data.rows.map(x => SVec(Series(x), x.length))
 
 }

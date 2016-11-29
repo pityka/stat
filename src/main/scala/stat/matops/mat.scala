@@ -4,7 +4,7 @@ import org.saddle._
 
 trait VecOps[T] {
   def length(t: T): Int
-  def dot(t: T, t2: Vec[Double]): Double
+  def vv(t: T, t2: Vec[Double]): Double
 }
 
 trait MatOps[T] {
@@ -19,15 +19,16 @@ trait MatOps[T] {
   def mm(t: T, m: Mat[Double]): Mat[Double]
   def numRows(t: T): Int
   def numCols(t: T): Int
-  def row(t: T, i: Int): Vec[Double]
+  def row(t: T, i: Int): V
   def raw(t: T, i: Int, j: Int): Double
   def rows(t: T): IndexedSeq[V]
 }
 
 object DenseVecOps extends VecOps[Vec[Double]] {
   type T = Vec[Double]
+  import org.saddle.linalg._
   def length(t: T): Int = t.length
-  def dot(t: T, t2: T): Double = t dot t2
+  def vv(t: T, t2: T): Double = t vv t2
 }
 
 object DenseMatOps extends MatOps[Mat[Double]] {

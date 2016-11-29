@@ -42,7 +42,11 @@ class LibLinearSuite extends FunSuite {
       y.toDouble -> Series((0 -> 1d) +: x: _*)
     }.toSeq.unzip
 
-    (y.toVec, x.toVector)
+    val maxCol: Int = x.map(_.index.toVec.max).max.get
+
+    println(maxCol)
+
+    (y.toVec, x.toVector.map(x => SVec(x, maxCol + 1)))
   }
 
   test("file ") {
@@ -59,9 +63,8 @@ class LibLinearSuite extends FunSuite {
     println(ybin)
     println(ymulti)
 
-    val sf = SparseMatrixData(x,
-                              Series(ymulti),
-                              penalizationMask = vec.ones(numCols(x)))
+    val sf =
+      SparseMatrixData(x, ymulti, penalizationMask = vec.ones(numCols(x)))
 
     val rng = new scala.util.Random(42)
     val fitFista = Cv.fitWithCV(
