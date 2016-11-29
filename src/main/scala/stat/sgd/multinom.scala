@@ -3,8 +3,13 @@ package stat.sgd
 import org.saddle._
 import org.saddle.linalg._
 import stat.matops._
+
+case class MulticlassEval(accuracy: Double,
+                          precisionAndRecall: Seq[(Double, (Double, Double))],
+                          n: Int)
+
 case class MultinomialLogisticRegression(numberOfClasses: Int)
-    extends ObjectiveFunction[(Double, Int), Vec[Double]] {
+    extends ObjectiveFunction[MulticlassEval, Vec[Double]] {
   assert(numberOfClasses > 1)
 
   val C = numberOfClasses - 1
@@ -318,7 +323,33 @@ case class MultinomialLogisticRegression(numberOfClasses: Int)
     val accuracy =
       hard.zipMap(batch.y)((p, y) => if (p == y) 1.0 else 0.0).mean
 
-    (accuracy, batch.y.length)
+    def tp(yval: Double) =
+      hard
+        .zipMap(batch.y)((p, y) => p == yval && y == yval)
+        .map(x => if (x) 1.0 else 0.0)
+        .sum
+
+    def fp(yval: Double) =
+      hard
+        .zipMap(batch.y)((p, y) => p == yval && y != yval)
+        .map(x => if (x) 1.0 else 0.0)
+        .sum
+
+    def precision(yval: Double) = {
+      val t = tp(yval)
+      val f = fp(yval)
+      t / (t + f)
+    }
+
+    def recall(yval: Double) = tp(yval) / batch.y.countif(_ == yval)
+
+    val prs = batch.y.toSeq.distinct.map { yval =>
+      val pr = precision(yval)
+      val rc = recall(yval)
+      yval -> (pr, rc)
+    }
+
+    MulticlassEval(accuracy, prs.sortBy(_._1), batch.y.length)
   }
 
 }

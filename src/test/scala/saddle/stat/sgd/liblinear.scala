@@ -73,16 +73,20 @@ class LibLinearSuite extends FunSuite {
       stat.sgd.ElasticNet(1d, 1d),
       stat.sgd.FistaUpdater,
       0.6,
-      stat.crossvalidation.KFold(5, rng, 1),
+      stat.crossvalidation.KFoldStratified(
+        5,
+        rng,
+        1,
+        List(0d, 1d, 2d).map(y => ymulti.find(_ == y))),
       stat.crossvalidation.RandomSearch2D(() => rng.nextDouble),
       hMin = -4d,
       hMax = 2d,
       hN = 20,
       maxIterations = 50000,
-      minEpochs = 0.3,
+      minEpochs = 1.0,
       convergedAverage = 10,
       epsilon = 1E-3,
-      batchSize = 32,
+      batchSize = 16,
       maxEvalSize = 2000,
       rng
     )
