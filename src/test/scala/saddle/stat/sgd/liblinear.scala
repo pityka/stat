@@ -50,34 +50,40 @@ class LibLinearSuite extends FunSuite {
   }
 
   test("file ") {
-    val file = System.getProperty("user.home") + "/Downloads/connect-4.txt"
+    val file = System.getProperty("user.home") + "/Downloads/aloi"
     val (y, x) = readLibLinearToSparse(scala.io.Source.fromFile(file))
     slogging.LoggerConfig.factory = slogging.PrintLoggerFactory()
     slogging.LoggerConfig.level = slogging.LogLevel.DEBUG
 
+    println(y.toSeq.groupBy(x => x).toSeq.map(x => x._1 -> x._2.size))
+    println(y.toSeq.distinct.size)
     println(numCols(x))
     println(numRows(x))
 
-    val ymulti = y.map(_ + 1d)
-    val ybin = y.map(x => if (x > 0) 1d else 0d)
-    println(ybin)
+    val idx = y.find(_ <= 50d)
+    val ymulti = y(idx) //.map(_ + 1d)
+    // val ybin = y.map(x => if (x > 0) 1d else 0d)
+    // println(ybin)
     println(ymulti)
 
     val sf =
-      SparseMatrixData(x, ymulti, penalizationMask = vec.ones(numCols(x)))
+      SparseMatrixData(idx.map(i => x(i)).toSeq.toVector,
+                       ymulti,
+                       penalizationMask = vec.ones(numCols(x)))
 
     val rng = new scala.util.Random(42)
     val fitFista = Cv.fitWithCV(
       sf,
-      stat.sgd.MultinomialLogisticRegression(3),
+      stat.sgd.MultinomialLogisticRegression(51),
       stat.sgd.ElasticNet(1d, 1d),
       stat.sgd.FistaUpdater,
-      0.6,
-      stat.crossvalidation.KFoldStratified(
-        5,
-        rng,
-        1,
-        List(0d, 1d, 2d).map(y => ymulti.find(_ == y))),
+      trainRatio = 0.6,
+      stat.crossvalidation.KFoldStratified(5,
+                                           rng,
+                                           1,
+                                           (0 to 50).toSeq.distinct
+                                             .map(_.toDouble)
+                                             .map(y => ymulti.find(_ == y))),
       stat.crossvalidation.RandomSearch2D(() => rng.nextDouble),
       hMin = -4d,
       hMax = 2d,
