@@ -4,7 +4,10 @@ import org.saddle._
 
 trait VecOps[T] {
   def length(t: T): Int
+  // dot
   def vv(t: T, t2: Vec[Double]): Double
+  // dot
+  def vv2(t: T, t2: T): Double
 }
 
 trait MatOps[T] {
@@ -29,6 +32,7 @@ object DenseVecOps extends VecOps[Vec[Double]] {
   import org.saddle.linalg._
   def length(t: T): Int = t.length
   def vv(t: T, t2: T): Double = t vv t2
+  def vv2(t: T, t2: T): Double = vv(t, t2)
 }
 
 object DenseMatOps extends MatOps[Mat[Double]] {

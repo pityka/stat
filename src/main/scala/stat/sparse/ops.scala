@@ -20,6 +20,24 @@ object SparseVecOps extends VecOps[SVec] {
     }
     s
   }
+  def vv2(t: T, t2: T): Double = {
+    var s = 0d
+    var i = 0
+    val v1 = t.values.toVec
+    val v2 = t2.values.toVec
+    val idx1 = t.values.index
+    val idx2 = t2.values.index
+    val n = math.min(v1.length, v2.length)
+    while (i < n) {
+      val vv1 = v1.raw(i)
+      val iv1 = idx1.raw(i)
+      if (idx2.contains(iv1)) {
+        s += vv1 * v2.raw(idx2.getFirst(iv1))
+      }
+      i += 1
+    }
+    s
+  }
 }
 
 object SparseMatOps extends MatOps[SMat] {
