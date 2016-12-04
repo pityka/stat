@@ -8,8 +8,9 @@ import org.nspl.awtrenderer._
 
 class KMedoidsSuite extends FunSuite {
   test("short") {
-    val data = mat.randn(20000, 2)
+    val data = mat.randn(5000, 2)
     val dist = data.outerM
+    implicit val matops = stat.matops.DenseMatOps
 
     val res = kmedoid.apply(dist, Vec(0, 1, 2, 3, 4, 5))
 

@@ -5,6 +5,7 @@ import org.nspl._
 import org.nspl.saddle._
 import org.nspl.data._
 import org.nspl.awtrenderer._
+import stat.matops._
 
 package object kmedoid {
 
@@ -30,22 +31,22 @@ package object kmedoid {
 
   }
 
-  def assign(dist: Mat[Double], i: Int, medoids: Vec[Int]): (Int, Double) =
+  def assign[M: MatOps](dist: M, i: Int, medoids: Vec[Int]): (Int, Double) =
     medoids.toSeq.map(m => m -> dist.raw(i, m)).minBy(_._2)
 
-  def assignAll(dist: Mat[Double], medoids: Vec[Int]): (Vec[Int], Double) = {
+  def assignAll[M: MatOps](dist: M, medoids: Vec[Int]): (Vec[Int], Double) = {
     val (assignments, costs) =
       (0 until dist.numRows).map(i => assign(dist, i, medoids)).unzip
     assignments.toVec -> costs.sum
   }
 
-  def cost(dist: Mat[Double], m: Int, cluster: Vec[Int]): Double =
+  def cost[M: MatOps](dist: M, m: Int, cluster: Vec[Int]): Double =
     cluster.foldLeft(0d)((s, i) => s + dist.raw(i, m))
 
-  def recenter(dist: Mat[Double], cluster: Vec[Int], m: Int): Int =
+  def recenter[M: MatOps](dist: M, cluster: Vec[Int], m: Int): Int =
     cluster.toSeq.minBy(i => cost(dist, i, cluster))
 
-  def recenterAll(dist: Mat[Double], assignments: Vec[Int]): Vec[Int] = {
+  def recenterAll[M: MatOps](dist: M, assignments: Vec[Int]): Vec[Int] = {
     val assignmentWithIndex = Series(assignments)
     assignments.toSeq.distinct.map { m =>
       val cluster = assignmentWithIndex.filter(_ == m).index.toVec
@@ -53,13 +54,13 @@ package object kmedoid {
     }.toVec
   }
 
-  def step(dist: Mat[Double], assignments: Vec[Int]): (Vec[Int], Double) = {
+  def step[M: MatOps](dist: M, assignments: Vec[Int]): (Vec[Int], Double) = {
     val newmedoids = recenterAll(dist, assignments)
     val (newassignment, cost) = assignAll(dist, newmedoids)
     (newassignment, cost)
   }
 
-  def apply(dist: Mat[Double], init: Vec[Int]): KMedoidResult = {
+  def apply[M: MatOps](dist: M, init: Vec[Int]): KMedoidResult = {
     val (_s2, _c) = step(dist, assignAll(dist, init)._1)
     var s2 = _s2
     var c = _c
