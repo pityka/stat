@@ -27,10 +27,24 @@ package object kmeans {
 
   }
 
-  def euclid(v1: SVec, v2: SVec) = {
-    val (j1, j2) = v1.values.align(v2.values, index.OuterJoin)
-    val d = (j1.fillNA(_ => 0d) - j2.fillNA(_ => 0d)).toVec
-    math.sqrt(d dot d)
+  def euclid(t1: SVec, t2: SVec) = {
+    assert(t1.length == t2.length)
+    var s = 0d
+    var i = 0
+    val v1 = t1.values.toVec
+    val v2 = t2.values.toVec
+    val idx1 = t1.values.index
+    val idx2 = t2.values.index
+    val n = v1.length
+    while (i < n) {
+      val vv1 = if (idx1.contains(i)) v1.raw(idx1.getFirst(i)) else 0d
+      val vv2 = if (idx2.contains(i)) v2.raw(idx2.getFirst(i)) else 0d
+      val d = vv1 - vv2
+      s += d * d
+
+      i += 1
+    }
+    math.sqrt(s)
   }
 
   def assign(v: SVec, means: SMat): Int = {
@@ -39,11 +53,9 @@ package object kmeans {
     }
   }
 
-  def colmeans(data: SMat): SVec = {
-    val keys = data.flatMap(_.values.index.toSeq).distinct
-    SVec(keys.map { k =>
-      k -> data.map(s => s.values.first(k).getOrElse(0d)).toVec.mean
-    }.toSeries, keys.size)
+  def colmeans(t: SMat): SVec = {
+    val means = stat.sparse.colmeans(t)
+    SVec(Series(means).filter(_ != 0d), means.length)
   }
 
   def assignAll(data: SMat, means: SMat): Seq[Vec[Int]] =

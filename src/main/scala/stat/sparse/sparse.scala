@@ -18,6 +18,29 @@ package object sparse {
     if (sm.isEmpty) 0 else sm.map(x => length(x)).max
   def numRows(sm: SMat): Int = sm.length
 
+  def colmeans(t: SMat): Vec[Double] = {
+    val sums = Array.ofDim[Double](t.head.length)
+    var i = 0
+    var j = 0
+    while (i < t.size) {
+      val row = t(i)
+      val vec = row.values.toVec
+      val idx = row.values.index
+      while (j < vec.length) {
+        val vv = vec.raw(j)
+        val iv = idx.raw(j)
+        sums(iv) += vv
+        j += 1
+      }
+      j = 0
+      i += 1
+    }
+    val n = stat.sparse.numRows(t)
+    val means: Vec[Double] = (sums: Vec[Double]) / n
+    // SVec(Series(means).filter(_ != 0d), means.length)
+    means
+  }
+
   def dense(sm: SMat, rIdx: Vec[Int], cIdx: Vec[Int]): Mat[Double] =
     Mat(rIdx.map(i => sm(i)).map(dense(_, cIdx)).toSeq: _*).T
   def rowIx(sm: SMat): Vec[Int] = index.IndexIntRange(numRows(sm)).toVec
