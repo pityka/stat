@@ -18,10 +18,10 @@ package object sparse {
     if (sm.isEmpty) 0 else sm.map(x => length(x)).max
   def numRows(sm: SMat): Int = sm.length
 
-  def colmeans(t: SMat): Vec[Double] = {
-    val sums = Array.ofDim[Double](t.head.length)
+  private[stat] def colmeans(t: SMat, sums: Array[Double]): Unit = {
     var i = 0
     var j = 0
+    val dm = 1d / stat.sparse.numRows(t)
     while (i < t.size) {
       val row = t(i)
       val vec = row.values.toVec
@@ -29,14 +29,18 @@ package object sparse {
       while (j < vec.length) {
         val vv = vec.raw(j)
         val iv = idx.raw(j)
-        sums(iv) += vv
+        sums(iv) += vv * dm
         j += 1
       }
       j = 0
       i += 1
     }
-    val n = stat.sparse.numRows(t)
-    val means: Vec[Double] = (sums: Vec[Double]) / n
+  }
+
+  def colmeans(t: SMat): Vec[Double] = {
+    val sums = new Array[Double](t.head.length)
+    colmeans(t, sums)
+    val means: Vec[Double] = (sums: Vec[Double])
     // SVec(Series(means).filter(_ != 0d), means.length)
     means
   }
