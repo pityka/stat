@@ -7,8 +7,9 @@ import org.nspl._
 import org.nspl.saddle._
 import org.nspl.data._
 import stat.sparse._
+import slogging.StrictLogging
 
-package object kmeans {
+package object kmeans extends StrictLogging {
 
   def plot(data: SMat, res: KMeansResult, max: Int) = {
 
@@ -27,9 +28,8 @@ package object kmeans {
 
   }
 
-  def euclid(t1: SVec, t2: Vec[Double]) = {
-    assert(t1.length == t2.length)
-    var s = 0d
+  def euclid(t1: SVec, t2: Vec[Double], t2inner: Double) = {
+    var s = t2inner
     var i = 0
     val v1 = t1.values.toVec
     val idx1 = t1.values.index
@@ -39,19 +39,20 @@ package object kmeans {
       val iv1 = idx1.raw(i)
       val vv2 = t2.raw(iv1)
       val d = vv1 - vv2
-      s += d * d
+      s += d * d - vv2 * vv2
       i += 1
     }
-    i = 0
+    // println(s + " " + ((sparse.dense(t1) - t2) vv (sparse.dense(t1) - t2)))
     math.sqrt(s)
   }
 
-  def assign(v: SVec, means: Vector[Vec[Double]]): Int = {
+  def assign(v: SVec, means: Vector[(Vec[Double], Double)]): Int = {
     var i = 1
     var m = 0
-    var mv = euclid(v, means.head)
+    var mv = euclid(v, means.head._1, means.head._2)
     while (i < means.size) {
-      val f = euclid(v, means(i))
+      val mi = means(i)
+      val f = euclid(v, mi._1, mi._2)
       if (f < mv) {
         mv = f
         m = i
@@ -64,16 +65,20 @@ package object kmeans {
   def colmeans(t: SMat): Vec[Double] =
     stat.sparse.colmeans(t)
 
-  def assignAll(data: SMat, means: Vector[Vec[Double]]): Vector[Vec[Int]] =
+  def assignAll(data: SMat, means: Vector[Vec[Double]]): Vector[Vec[Int]] = {
+    val meansWithInner = means.map { i =>
+      (i, i vv i)
+    }
     data.zipWithIndex.map {
       case (row, idx) =>
-        val membership = assign(row, means)
+        val membership = assign(row, meansWithInner)
         membership -> idx
     }.groupBy(_._1)
       .toVector
       .map(x => x._1 -> Vec(x._2.map(_._2): _*))
       .sortBy(_._1)
       .map(_._2)
+  }
 
   def update(data: SMat, memberships: Vector[Vec[Int]]): Vector[Vec[Double]] =
     memberships.map { idx =>
@@ -85,8 +90,23 @@ package object kmeans {
     (update(data, assignment), assignment)
   }
 
+  def cost(data: SMat,
+           assignment: Vector[Vec[Int]],
+           means: Vector[Vec[Double]]): Double = {
+    ((assignment zip means) map {
+      case (assignment, (mean)) =>
+        val meand = mean vv mean
+        assignment.map { i =>
+          val x = euclid(data(i), mean, meand)
+          x * x
+        }.sum
+    }).sum
+  }
+
   def apply(data: SMat, init: Vector[Vec[Double]], it: Int): KMeansResult = {
+
     val (next, assignments) = step(data, init)
+    logger.debug("K-Means cost: {}. It: {}", cost(data, assignments, next), it)
 
     if (it == 0)
       KMeansResult(assignments.zipWithIndex
@@ -94,8 +114,21 @@ package object kmeans {
                      .sortBy(_._1)
                      .map(_._2)
                      .toVec,
-                   next)
+                   next,
+                   cost(data, assignments, next))
     else apply(data, next, it - 1)
+  }
+
+  def random(data: SMat,
+             clusters: Int,
+             restarts: Int,
+             iterations: Int,
+             rng: scala.util.Random): KMeansResult = {
+    0 until restarts map { _ =>
+      val init: Vector[Vec[Double]] =
+        rng.shuffle(data).take(clusters).map(i => sparse.dense(i)).toVector
+      apply(data, init, iterations)
+    } minBy (_.cost)
   }
 
   def apply(data: Mat[Double], init: Mat[Double], it: Int): KMeansResult =
