@@ -11,7 +11,7 @@ package object matops {
     def mDiagFromLeft(v: Vec[Double]): T = op.mDiagFromLeft(t, v)
     def tmm(t2: T): Mat[Double] = op.tmm(t, t2)
     def mm(m: Mat[Double]): Mat[Double] = op.mm(t, m)
-
+    def mmLeft(left: Mat[Double]): Mat[Double] = op.mmLeft(left, t)
     def numRows: Int = op.numRows(t)
     def numCols: Int = op.numCols(t)
     def raw(i: Int, j: Int): Double = op.raw(t, i, j)

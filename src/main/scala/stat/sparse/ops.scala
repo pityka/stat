@@ -76,15 +76,28 @@ object SparseMatOps extends MatOps[SMat] {
     }: _*)
   }
 
-  def singularValues(t: T, i: Int): Vec[Double] = {
-    val xxt: Mat[Double] = Mat(t.map { rowi =>
-      t.map { rowj =>
-        rowi.values.joinMap(rowj.values, index.InnerJoin)(_ * _).sum
-      }.toVec
-    }: _*)
-    xxt.eigenValuesSymm(i).map(math.sqrt)
-
+  def outerM(t: T): Mat[Double] = {
+    val r = t.size
+    val ar = Array.ofDim[Double](r * r)
+    var i = 0
+    var j = 0
+    while (i < r) {
+      while (j < i) {
+        val v1 = t(i)
+        val v2 = t(j)
+        val vv = SparseVecOps.vv2(v1, v2)
+        ar(i * r + j) = vv
+        ar(j * r + i) = vv
+        j += 1
+      }
+      j = 0
+      i += 1
+    }
+    Mat(r, r, ar)
   }
+
+  def singularValues(t: T, i: Int): Vec[Double] =
+    svd(t, i).sigma
 
   def mDiagFromLeft(t: T, v: Vec[Double]): T = {
     t.zipWithIndex.map {
@@ -134,9 +147,47 @@ object SparseMatOps extends MatOps[SMat] {
     }
     Mat(rows, m.numCols, ar)
   }
+
+  //       1         2        3
+  //       4         5        6
+  //
+  // a b  a1 + b4 ; a2 + b5; a3+b6
+  // c d  c1 + b4 ; c2 + d5
+  def mmLeft(left: Mat[Double], right: T): Mat[Double] = {
+    val cols = numCols(right)
+    val ar = Array.ofDim[Double](cols * left.numRows)
+    var i = 0
+    var j = 0
+    var z = 0
+    while (i < right.size) {
+      val t = right(i)
+      val vec = t.values.toVec
+      val idx = t.values.index
+      val leftCol = left.col(i)
+      while (j < vec.length) {
+        val v = vec.raw(j)
+        val iv = idx.raw(j)
+        val leftColV = leftCol * v
+        while (z < leftColV.length) {
+          ar(z * cols + j) += leftColV.raw(z)
+          z += 1
+        }
+
+        z = 0
+        j += 1
+      }
+      j = 0
+      i += 1
+    }
+    Mat(left.numRows, cols, ar)
+
+  }
+
   def numRows(t: T): Int = stat.sparse.numRows(t)
   def numCols(t: T): Int = stat.sparse.numCols(t)
   def row(t: T, i: Int): SVec = t(i)
   def raw(t: T, i: Int, j: Int): Double = get(t(i), j)
   def rows(t: T): IndexedSeq[V] = t
+
+  def svd(t: T, i: Int): SVDResult = Svd(t, i)(this)
 }

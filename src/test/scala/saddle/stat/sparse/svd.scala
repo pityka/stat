@@ -9,6 +9,36 @@ import stat.matops._
 
 class SVDSuite extends FunSuite {
 
+  test("svd 3x2 dense ") {
+    val m = Mat(Vec(1d, 2d), Vec(3d, 4d), Vec(5d, 6d))
+    // val mfull = m.svd(2)
+    val mfull = Svd(m, 2)(DenseMatOps)
+
+    val sigma = Mat(mat.diag(mfull.sigma).T.cols: _*)
+    val back = (mfull.u mm sigma mm mfull.vt)
+    assert(back.roundTo(10) == m)
+
+    val m1 = Svd(m, 1)(DenseMatOps)
+
+    assert(m1.u.roundTo(7) == Mat(Vec(0.6196295, 0.7848945)))
+
+  }
+
+  test("svd 3x2 sparse ") {
+    val m: SMat = Mat(Vec(1d, 2d), Vec(3d, 4d), Vec(5d, 6d)).rows.map(r =>
+      SVec(Series(r), r.length))
+    val mfull = Svd(m, 2)(SparseMatOps)
+
+    val sigma = Mat(mat.diag(mfull.sigma).T.cols: _*)
+    val back = (mfull.u mm sigma mm mfull.vt)
+    assert(back.roundTo(10) == sparse.dense(m))
+
+    val m1 = Svd(m, 1)(SparseMatOps)
+
+    assert(m1.u.roundTo(7) == Mat(Vec(0.6196295, 0.7848945)))
+
+  }
+
   test("eigen 2x2") {
     implicit val vo = SparseVecOps
     implicit val vom = SparseMatOps
