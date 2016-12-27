@@ -202,11 +202,10 @@ object LogisticRegression {
   def logisticRegression[I: ST: ORD](
       data: Frame[I, String, Double],
       yKey: String,
-      missingMode: MissingMode = DropSample,
       addIntercept: Boolean = true
   ): NamedLogisticRegressionResult[I] = {
 
-    val data2 = createDesignMatrix(data, missingMode, addIntercept)
+    val data2 = createDesignMatrix(data, addIntercept)
 
     val raw = logisticRegression(
       data2.filterIx(_ != yKey).toMat,

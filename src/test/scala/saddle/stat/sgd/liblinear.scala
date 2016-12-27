@@ -4,6 +4,7 @@ import org.saddle._
 import org.saddle.linalg._
 import org.scalatest.FunSuite
 import stat.sparse._
+import stat.crossvalidation.Split
 
 class LibLinearSuite extends FunSuite {
   slogging.LoggerConfig.factory = slogging.PrintLoggerFactory()
@@ -77,7 +78,7 @@ class LibLinearSuite extends FunSuite {
       stat.sgd.MultinomialLogisticRegression(51),
       stat.sgd.ElasticNet(1d, 1d),
       stat.sgd.FistaUpdater,
-      trainRatio = 0.6,
+      Split(0.6, rng),
       stat.crossvalidation.KFoldStratified(5,
                                            rng,
                                            1,

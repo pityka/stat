@@ -4,6 +4,7 @@ import org.saddle._
 import org.saddle.linalg._
 import org.scalatest.FunSuite
 import stat._
+import stat.crossvalidation.Split
 
 class LMRandomSuite extends FunSuite {
   slogging.LoggerConfig.factory = slogging.PrintLoggerFactory()
@@ -24,7 +25,7 @@ class LMRandomSuite extends FunSuite {
       sgd.LinearRegression,
       L1(1.0),
       FistaUpdater,
-      0.9,
+      Split(0.9, rng),
       stat.crossvalidation.KFold(5, rng, 1),
       stat.crossvalidation.RandomSearch(() => rng.nextDouble),
       hMin = -6d,
@@ -62,7 +63,7 @@ class LRRandomSuite extends FunSuite {
       sgd.LogisticRegression,
       ElasticNet(1.0, 1.0),
       FistaUpdater,
-      0.8,
+      Split(0.8, rng),
       stat.crossvalidation.KFold(5, rng, 1),
       stat.crossvalidation.RandomSearch2D(() => rng.nextDouble),
       hMin = -2d,
@@ -100,7 +101,7 @@ class MNLRRandomSuite extends FunSuite {
       sgd.MultinomialLogisticRegression(2),
       ElasticNet(1.0, 1.0),
       FistaUpdater,
-      0.8,
+      Split(0.8, rng),
       stat.crossvalidation.KFold(5, rng, 1),
       stat.crossvalidation.RandomSearch2D(() => rng.nextDouble),
       hMin = -2d,

@@ -20,7 +20,8 @@ object Heatmap {
       xLabFontSize: Option[RelFontSize] = None,
       yLabFontSize: Option[RelFontSize] = None,
       mainFontSize: RelFontSize = 1 fts,
-      colormap: Colormap = HeatMapColors(0, 1)
+      colormap: Colormap = HeatMapColors(0, 1),
+      zlim: Option[(Double, Double)] = None
   ) = {
 
     val distF = if (euclidean) euclideanDistance else angularDistance
@@ -42,14 +43,17 @@ object Heatmap {
                                       xLabFontSize,
                                       yLabFontSize,
                                       mainFontSize,
-                                      colormap)
+                                      colormap,
+                                      zlim = zlim)
     val distmap = rasterplotFromFrame(reorderedDistmat,
                                       main,
                                       xlab,
                                       xlab,
                                       xLabFontSize,
                                       xLabFontSize,
-                                      mainFontSize)
+                                      mainFontSize,
+                                      colormap,
+                                      zlim = zlim)
 
     (heatmap, distmap, distmat)
 

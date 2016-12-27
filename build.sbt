@@ -9,8 +9,8 @@ version := "0.0.9"
 libraryDependencies ++= Seq(
   "io.github.pityka" %% "saddle-linalg" % "0.0.14",
   "io.github.pityka" % "hierarchical-clustering-fork" % "1.0-5",
-  "io.github.pityka" %% "nspl-saddle" % "0.0.12",
-  "io.github.pityka" %% "nspl-awt" % "0.0.12" % "test",
+  "io.github.pityka" %% "nspl-saddle" % "0.0.13",
+  "io.github.pityka" %% "nspl-awt" % "0.0.13-SNAPSHOT" % "test",
   "org.scalatest" %% "scalatest" % "3.0.0" % "test",
   "biz.enef" %% "slogging" % "0.5.1"
 )
@@ -18,6 +18,20 @@ libraryDependencies ++= Seq(
 reformatOnCompileSettings
 
 parallelExecution in Test := false
+
+lazy val root = project in file(".")
+
+lazy val example1 = project
+  .in(file("examples/regression"))
+  .settings(
+    libraryDependencies ++= Seq(
+      "io.github.pityka" %% "nspl-awt" % "0.0.13-SNAPSHOT",
+      "io.github.pityka" %% "fileutils" % "1.0.0"
+    ),
+    scalaVersion := "2.11.8"
+  )
+  .settings(reformatOnCompileSettings: _*)
+  .dependsOn(root)
 
 pomExtra in Global := {
   <url>https://pityka.github.io/stat</url>

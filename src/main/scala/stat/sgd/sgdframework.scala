@@ -2,7 +2,7 @@ package stat.sgd
 
 import org.saddle._
 import org.saddle.linalg._
-import stat.regression.{MissingMode, DropSample, Prediction, NamedPrediction}
+import stat.regression.{Prediction, NamedPrediction}
 import slogging.StrictLogging
 import stat.matops._
 
@@ -26,12 +26,13 @@ trait Updater[I <: ItState] {
 
 case class SgdResult[E, P](
     estimatesV: Vec[Double],
-    model: ObjectiveFunction[E, P]
+    model: ObjectiveFunction[E, P],
+    scaledEstimatesV: Vec[Double]
 ) extends Prediction[P]
     with EvaluateFit[E, P] {
   def predict(v: Vec[Double]) = predict(Mat(v).T).raw(0)
-  def predict(m: Mat[Double]) = model.predictMat(estimatesV, m)
-  def predict[T: MatOps](m: T) = model.predict(estimatesV, m)
+  def predict(m: Mat[Double]) = model.predictMat(scaledEstimatesV, m)
+  def predict[T: MatOps](m: T) = model.predict(scaledEstimatesV, m)
   def evaluateFit[T: MatOps](b: Batch[T]): Double = model.apply(estimatesV, b)
   def evaluateFit2[T: MatOps](b: Batch[T]): E = model.eval(estimatesV, b)
 }
@@ -43,6 +44,7 @@ case class NamedSgdResult[E, P](
     with Prediction[P]
     with EvaluateFit[E, P] {
   def estimatesV = raw.estimatesV
+  def scaledEstimatesV = raw.scaledEstimatesV
   def predict(v: Vec[Double]) = raw.predict(v)
   def predict(m: Mat[Double]) = raw.predict(m)
   def predict[T: MatOps](m: T) = raw.predict(m)
@@ -59,17 +61,16 @@ object Sgd extends StrictLogging {
       obj: ObjectiveFunction[E, P],
       pen: Penalty[_],
       upd: Updater[I],
-      missingMode: MissingMode = DropSample,
       addIntercept: Boolean = true,
       maxIterations: Int = 100000,
       minEpochs: Double = 2d,
       convergedAverage: Int = 50,
       epsilon: Double = 1E-6,
-      standardize: Boolean = true,
       rng: scala.util.Random = new scala.util.Random(42)
   )(implicit sdf: DataSourceFactory[FrameData[RX], Mat[Double]])
-    : Option[NamedSgdResult[E, P]] =
-    optimize(FrameData(f, yKey, missingMode, addIntercept, standardize),
+    : Option[NamedSgdResult[E, P]] = {
+    val frameData = FrameData(f, yKey, addIntercept)
+    optimize(frameData,
              obj,
              pen,
              upd,
@@ -88,6 +89,7 @@ object Sgd extends StrictLogging {
           .toIndex
       NamedSgdResult(result, idx)
     }
+  }
 
   def optimize[D, I <: ItState, E, P, M: MatOps](
       data: D,
@@ -100,7 +102,7 @@ object Sgd extends StrictLogging {
       epsilon: Double,
       batchSize: Int,
       rng: scala.util.Random
-  )(implicit dsf: DataSourceFactory[D, M]): Option[SgdResult[E, P]] =
+  )(implicit dsf: DataSourceFactory[D, M]): Option[SgdResult[E, P]] = {
     optimize(dsf.apply(data, None, batchSize, rng),
              obj,
              pen,
@@ -109,6 +111,7 @@ object Sgd extends StrictLogging {
              minEpochs,
              convergedAverage,
              epsilon)
+  }
 
   def optimize[I <: ItState, E, P, M: MatOps](
       dataSource: DataSource[M],
@@ -167,7 +170,7 @@ object Sgd extends StrictLogging {
               (minEpochs * dataSource.batchPerEpoch).toInt + 1,
               convergedAverage,
               epsilon).map { r =>
-      SgdResult(r, obj)
+      SgdResult(r, obj, obj.scaleBackCoefficients(r, dataSource.stdev))
     }
 
   }

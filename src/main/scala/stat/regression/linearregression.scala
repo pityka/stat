@@ -61,20 +61,20 @@ object LinearRegression {
   def linearRegression[I](
       data: Frame[I, String, Double],
       yKey: String,
-      missingMode: MissingMode = DropSample,
       lambda: Double = 0.0,
       addIntercept: Boolean = true
   )(implicit ev: org.saddle.ST[I],
     ord: Ordering[I]): NamedLinearRegressionResult[I] = {
 
     val data2 =
-      createDesignMatrix(data, missingMode, addIntercept)
+      createDesignMatrix(data, addIntercept)
 
     val withoutNames = linearRegression(
       X = data2.filterIx(_ != yKey).toMat,
       y = data2.firstCol(yKey).toVec,
       shrinkage = lambda,
-      penalizationWeights = data2.stdev.toVec.map(x => 1.0 / x)
+      penalizationWeights =
+        data2.filterIx(_ != yKey).stdev.toVec.map(x => 1.0 / x)
     )
 
     NamedLinearRegressionResult(data2.colIx.toSeq.filter(_ != yKey).toIndex,

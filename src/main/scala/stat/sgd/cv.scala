@@ -2,7 +2,7 @@ package stat.sgd
 
 import org.saddle._
 import org.saddle.linalg._
-import stat.regression.{MissingMode, DropSample, Prediction, NamedPrediction}
+import stat.regression.{Prediction, NamedPrediction}
 import stat.crossvalidation.{
   Train,
   Eval,
@@ -19,13 +19,12 @@ object Cv {
   def fitWithCV[RX: ST: ORD, I <: ItState, E, H, P](
       data: Frame[RX, String, Double],
       yKey: String,
-      missingMode: MissingMode,
       addIntercept: Boolean,
       standardize: Boolean,
       obj: ObjectiveFunction[E, P],
       pen: Penalty[H],
       upd: Updater[I],
-      trainRatio: Double,
+      outerSplit: CVSplit,
       split: CVSplit,
       search: HyperParameterSearch[H],
       hMin: Double,
@@ -40,11 +39,11 @@ object Cv {
     : (EvalR[E], NamedSgdResult[E, P]) = {
 
     val (eval, result) =
-      fitWithCV(FrameData(data, yKey, missingMode, addIntercept, standardize),
+      fitWithCV(FrameData(data, yKey, addIntercept),
                 obj,
                 pen,
                 upd,
-                trainRatio,
+                outerSplit,
                 split,
                 search,
                 hMin,
@@ -74,7 +73,7 @@ object Cv {
       obj: ObjectiveFunction[E, P],
       pen: Penalty[H],
       upd: Updater[I],
-      trainRatio: Double,
+      outerSplit: CVSplit,
       split: CVSplit,
       search: HyperParameterSearch[H],
       hMin: Double,
@@ -104,15 +103,17 @@ object Cv {
 
     val nested = Train.nestedSearch(training, split, hMin, hMax, hN, search)
 
-    val allidx = dsf.apply(data, None, batchSize, rng).allidx
+    val ds = dsf.apply(data, None, batchSize, rng)
+    val allidx = ds.allidx
 
     val (eval, estimates) = trainOnTestEvalOnHoldout(
       allidx,
       nested,
-      Split(trainRatio, rng)
+      outerSplit
     ).next
 
-    val prediction = SgdResult(estimates, obj)
+    val prediction =
+      SgdResult(estimates, obj, obj.scaleBackCoefficients(estimates, ds.stdev))
     (eval, prediction)
 
   }
@@ -155,11 +156,13 @@ object Cv {
 
                 val obj = result.evaluateFit(batch)
                 val e = result.evaluateFit2(batch)
-                logger.debug("Eval on {} out of {}: obj - {}, misc - {}",
-                             math.min(idx.length, evalBatchSize),
-                             idx.length,
-                             obj,
-                             e)
+                logger.debug(
+                  "Eval on {} out of {}: obj - {}, misc - {}",
+                  math.min(idx.length, evalBatchSize),
+                  idx.length,
+                  obj,
+                  e
+                )
                 EvalR(obj, e)
 
               }

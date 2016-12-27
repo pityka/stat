@@ -24,10 +24,15 @@ class PCASuite extends FunSuite {
         .roundTo(4) == fromCovariance(cov, 1).eigenvalues.roundTo(4))
 
     show(
-      plot(
-        fromData(data, 2),
-        2,
-        data.colAt(0).mapValues(x => (x > 0).toString).toSeq.drop(3).toSeries))
+      plot(fromData(data, 2),
+           2,
+           scala.util.Left(
+             data
+               .colAt(0)
+               .mapValues(x => (x > 0).toString)
+               .toSeq
+               .drop(3)
+               .toSeries)))
   }
 
 }

@@ -23,6 +23,9 @@ case class MultinomialLogisticRegression(numberOfClasses: Int)
     }
   }
 
+  def scaleBackCoefficients(estimates: Vec[Double], std: Vec[Double]) =
+    estimates * Vec(1 to C flatMap (i => std.toSeq): _*)
+
   def start(cols: Int): Vec[Double] = vec.zeros(cols * C)
 
   def apply[T: MatOps](b: Vec[Double], batch: Batch[T]): Double = {

@@ -6,10 +6,6 @@ import org.saddle.linalg._
 import scala.util.{Try, Success, Failure}
 import stat.matops._
 
-sealed trait MissingMode
-case object DropSample extends MissingMode
-case object MeanImpute extends MissingMode
-
 case class Effect(slope: Double, sd: Double) {
   def slopeOverSD = slope / sd
 }
@@ -61,21 +57,20 @@ object StudentTest {
 }
 
 trait Prediction[@specialized(Double) P] {
-  def estimatesV: Vec[Double]
   def predict(v: Vec[Double]): P
   def predict(m: Mat[Double]): Vec[P]
   def predict[T: MatOps](m: T): Vec[P]
 }
 
 trait NamedPrediction[@specialized(Double) P] extends Prediction[P] {
-  implicit def st: ST[P] = implicitly[ST[P]]
   def names: Index[String]
-  def estimates: Series[String, Double] = Series(estimatesV, names)
-  def predict[I: ST: Ordering](m: Frame[I, String, Double],
-                               intercept: Boolean): Series[I, P] = {
+  def predictFrame[I: ST: Ordering](
+      m: Frame[I, String, Double],
+      intercept: Boolean)(implicit st: ST[P]): Series[I, P] = {
 
     val m2 = (if (intercept) addIntercept(m) else m).reindexCol(names)
-    Series(predict(m2.toMat), m2.rowIx)
+
+    Series(predict(m2.mapVec(_.fillNA(_ => 0d)).toMat), m2.rowIx)
   }
 }
 

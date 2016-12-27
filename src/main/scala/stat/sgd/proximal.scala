@@ -12,7 +12,10 @@ case class FistaItState(point: Vec[Double],
                         stepSize: Double,
                         obj: Double,
                         minStepSize: Double)
-    extends ItState
+    extends ItState {
+  override def toString =
+    s"FistaItState(conv=$convergence,stepSize=$stepSize,obj=$obj)"
+}
 
 /**
   * accelerated proximal gradient descent (FISTA)
@@ -61,7 +64,7 @@ object FistaUpdater extends Updater[FistaItState] {
       1 / e
     }
 
-    val stepSize = last.map(_.stepSize).getOrElse(minStepSize * 512)
+    val stepSize = last.map(_.stepSize).getOrElse(minStepSize * 1E4)
 
     val xnext = step(stepSize, y, gradient(y))
 

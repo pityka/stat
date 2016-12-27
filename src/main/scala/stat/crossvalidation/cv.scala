@@ -65,6 +65,12 @@ case class Split(ratioOfTrain: Double, rng: Random) extends CVSplit {
   }
 }
 
+case class SplitTakeIndex(idx: Array[Int]) extends CVSplit {
+  def generate(d: Vec[Int]): Iterator[(Vec[Int], Vec[Int])] = {
+    List(d.take(idx) -> d.without(idx)).iterator
+  }
+}
+
 case class KFold(folds: Int, rng: Random, replica: Int) extends CVSplit {
   def generate(d: Vec[Int]): Iterator[(Vec[Int], Vec[Int])] = {
     val indices = (0 until d.length).toVector

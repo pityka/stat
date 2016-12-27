@@ -23,6 +23,8 @@ trait ObjectiveFunction[E, @specialized(Double) P] {
 
   def adaptPenalizationMask[T](batch: Batch[T]): Vec[Double]
   def adaptParameterNames(s: Seq[String]): Seq[String]
+  def scaleBackCoefficients(estimates: Vec[Double],
+                            std: Vec[Double]): Vec[Double]
 }
 
 object LinearRegression extends ObjectiveFunction[Double, Double] {
@@ -69,6 +71,9 @@ object LinearRegression extends ObjectiveFunction[Double, Double] {
     val p = predict(estimates, batch.x)
     stat.crossvalidation.rSquared(p, batch.y)
   }
+
+  def scaleBackCoefficients(estimates: Vec[Double], std: Vec[Double]) =
+    estimates * std
 
 }
 
@@ -149,5 +154,8 @@ object LogisticRegression
 
     (accuracy, precision, recall, batch.y.length)
   }
+
+  def scaleBackCoefficients(estimates: Vec[Double], std: Vec[Double]) =
+    estimates * std
 
 }

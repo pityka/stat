@@ -13,7 +13,7 @@ package object pca {
       data: Frame[RX, CX, Double],
       max: Int
   ): PCA[RX, CX] = {
-    val demeaned = data.demeaned.toMat
+    val demeaned = data.demeaned.mapVec(v => v / v.stdev).toMat
     val nonZero = demeaned.singularValues(max).countif(_ > 1E-4)
     val SVDResult(u, sigma, vt) = data.demeaned.toMat.svd(nonZero)
 
@@ -52,22 +52,36 @@ package object pca {
     PCA(sigmaPos, proj, None)
   }
 
-  def plot[RX: ORD: ST, CX: ORD: ST](pca: PCA[RX, CX],
-                                     max: Int,
-                                     groups: Series[RX, String]) = {
+  def plot[RX: ORD: ST, CX: ORD: ST](
+      pca: PCA[RX, CX],
+      max: Int,
+      groups: Either[Series[RX, String], Series[RX, Double]]) = {
     val PCA(eigen, project, loading) = pca
     val screeplot = xyplot(eigen)(xlab = "Component", ylab = "Eigenvalue")
 
-    val colorValues = groups.toVec.toSeq.distinct.zipWithIndex.toMap
+    val colorValues = groups match {
+      case scala.util.Left(x) =>
+        Some(x.toVec.toSeq.distinct.zipWithIndex.toMap)
+      case scala.util.Right(_) => None
+    }
 
     val colornum: Series[RX, Double] =
-      Series(project.rowIx.toSeq.map { rx =>
-        rx -> (groups
-          .first(rx)
-          .flatMap(rx => colorValues.get(rx))
-          .map(_ + 1d)
-          .getOrElse(0d))
-      }: _*)
+      groups match {
+        case scala.util.Left(groups) =>
+          Series(project.rowIx.toSeq.map { rx =>
+            rx -> (groups
+              .first(rx)
+              .flatMap(rx => colorValues.get(rx))
+              .map(_ + 1d)
+              .getOrElse(0d))
+          }: _*)
+        case scala.util.Right(x) => x
+      }
+
+    val color = colorValues
+      .map(cv => DiscreteColors(cv.size + 1))
+      .getOrElse(
+        HeatMapColors(colornum.values.min.get, colornum.values.max.get))
 
     val projections = 0 until max combinations (2) map { g =>
       val c1 = g(0)
@@ -75,16 +89,14 @@ package object pca {
       xyplot(
         Frame(
           (project.col(c1, c2).toColSeq :+ ("color", colornum)).zipWithIndex
-            .map(x => (x._2 -> x._1._2)): _*) -> point(
-          labelText = true,
-          color = DiscreteColors(colorValues.size + 1)))(
+            .map(x => (x._2 -> x._1._2)): _*) -> point(labelText = true,
+                                                       color = color))(
         xlab = s"PCA $c1",
         ylab = s"PCA $c2",
-        extraLegend = colorValues.toSeq.map(
+        extraLegend = colorValues.toList.flatten.map(
           x =>
-            x._1 -> PointLegend(
-              shape = Shape.rectangle(0, 0, 1, 1),
-              color = DiscreteColors(colorValues.size + 1)(x._2 + 1d))))
+            x._1 -> PointLegend(shape = Shape.rectangle(0, 0, 1, 1),
+                                color = color(x._2 + 1d))))
     }
 
     val loadings = loading.toSeq.flatMap { loading =>
@@ -94,7 +106,25 @@ package object pca {
       }
     }
 
-    sequence(screeplot +: (projections ++ loadings).toList, TableLayout(4))
+    val topLoadings = loading.toSeq.flatMap { loading =>
+      0 until max map { c =>
+        val l =
+          if (loading.numRows >= 10)
+            loading
+              .firstCol(c)
+              .sorted
+              .take(
+                ((0 until 5) ++ (loading.numRows - 5 until loading.numRows)).toArray
+              )
+          else loading.firstCol(c)
+
+        barplotVertical(l.mapIndex(_.toString), main = s"Top loadings of $c")
+
+      }
+    }
+
+    sequence(screeplot +: (projections ++ loadings ++ topLoadings).toList,
+             TableLayout(4))
 
   }
 

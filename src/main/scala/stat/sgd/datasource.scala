@@ -2,7 +2,6 @@ package stat.sgd
 
 import org.saddle._
 import org.saddle.linalg._
-import stat.regression.{MissingMode, DropSample}
 import slogging.StrictLogging
 import stat.sparse._
 import stat._
@@ -12,7 +11,8 @@ case class DataSource[M](
     training: Iterator[Iterator[Batch[M]]],
     numCols: Int,
     allidx: Vec[Int],
-    batchPerEpoch: Int
+    batchPerEpoch: Int,
+    stdev: Vec[Double]
 )
 
 case class MatrixData(trainingX: Mat[Double],
@@ -25,9 +25,7 @@ case class SparseMatrixData(trainingX: SMat,
 
 case class FrameData[RX: ST: ORD](f: Frame[RX, String, Double],
                                   yKey: String,
-                                  missingMode: MissingMode = DropSample,
-                                  addIntercept: Boolean = true,
-                                  standardize: Boolean = false)
+                                  addIntercept: Boolean = true)
 
 trait DataSourceFactory[T, M] {
   implicit def ops: MatOps[M]
@@ -42,6 +40,13 @@ trait DataSourceFactories extends StrictLogging {
   implicit def matrixDataSource =
     new DataSourceFactory[MatrixData, Mat[Double]] {
       implicit val ops = DenseMatOps
+
+      def stdev(t: MatrixData): Vec[Double] =
+        t.trainingX.cols
+          .map(_.stdev)
+          .map(x => if (x == 0.0) 1.0 else 1d / x)
+          .toVec
+
       def apply(t: MatrixData,
                 allowedIdx2: Option[Vec[Int]],
                 batchSize: Int,
@@ -50,10 +55,15 @@ trait DataSourceFactories extends StrictLogging {
 
         val allowedIdx = allowedIdx2.getOrElse(0 until trainingX.numRows toVec)
 
+        val std = stdev(t)
+
+        val scaledTrainingX =
+          t.trainingX.mDiagFromRight(std)
+
         val fullBatch =
           if (batchSize >= allowedIdx.length)
             Some(
-              Batch(trainingX.takeRows(allowedIdx),
+              Batch(scaledTrainingX.takeRows(allowedIdx),
                     trainingY(allowedIdx),
                     penalizationMask))
           else None
@@ -81,7 +91,7 @@ trait DataSourceFactories extends StrictLogging {
 
                   logger.trace("New batch of size {} ", idx2.length)
 
-                  Batch(trainingX.takeRows(idx2),
+                  Batch(scaledTrainingX.takeRows(idx2),
                         trainingY(idx2),
                         penalizationMask)
                 }
@@ -93,7 +103,8 @@ trait DataSourceFactories extends StrictLogging {
         DataSource(iter,
                    trainingX.numCols,
                    (0 until trainingX.numRows).toVec,
-                   allowedIdx.length / batchSize + 1)
+                   allowedIdx.length / batchSize + 1,
+                   std)
       }
 
     }
@@ -111,7 +122,7 @@ trait DataSourceFactories extends StrictLogging {
         import data._
 
         val (x, y, std) =
-          createDesignMatrix(f, yKey, missingMode, addIntercept)
+          createDesignMatrix(f, yKey, addIntercept)
 
         val batchSize = math.min(batchSize1, x.numRows)
 
@@ -119,11 +130,7 @@ trait DataSourceFactories extends StrictLogging {
           MatrixData(trainingX = x,
                      trainingY = y,
                      penalizationMask =
-                       if (standardize)
-                         std.toSeq.zipWithIndex
-                           .map(x => if (x._2 == 0) 0d else 1.0 / x._1)
-                           .toVec
-                       else Vec(0d +: vec.ones(x.numCols - 1).toSeq: _*)),
+                       Vec(0d +: vec.ones(x.numCols - 1).toSeq: _*)),
           allowedIdx = None,
           batchSize = batchSize,
           rng = rng
@@ -135,11 +142,10 @@ trait DataSourceFactories extends StrictLogging {
 
   def createDesignMatrix[RX: ST: ORD](f: Frame[RX, String, Double],
                                       yKey: String,
-                                      missingMode: MissingMode = DropSample,
                                       addIntercept: Boolean = true)
     : (Mat[Double], Vec[Double], Vec[Double]) = {
     val data2 =
-      stat.regression.createDesignMatrix(f, missingMode, addIntercept)
+      stat.regression.createDesignMatrix(f, addIntercept)
 
     val x = data2.filterIx(_ != yKey)
     (x.toMat, data2.firstCol(yKey).toVec, x.stdev.toVec)
@@ -148,6 +154,9 @@ trait DataSourceFactories extends StrictLogging {
   implicit def sparseMatrixDataSource =
     new DataSourceFactory[SparseMatrixData, SMat] {
       implicit val ops: MatOps[SMat] = SparseMatOps
+
+      /* todo provide a meaningful implementation here */
+      def stdev(t: SparseMatrixData) = vec.ones(sparse.numCols(t.trainingX))
 
       def apply(t: SparseMatrixData,
                 allowedIdx2: Option[Vec[Int]],
@@ -188,7 +197,8 @@ trait DataSourceFactories extends StrictLogging {
         DataSource(iter,
                    cidx.length,
                    sparse.rowIx(trainingX),
-                   allowedIdx.length / batchSize + 1)
+                   allowedIdx.length / batchSize + 1,
+                   stdev(t))
       }
     }
 }
