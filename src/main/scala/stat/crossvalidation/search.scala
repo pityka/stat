@@ -19,6 +19,9 @@ case object GridSearch
     val candidates = array.linspace(min, max, n).map(x => math.exp(x))
 
     val means = candidates.map { c =>
+      logger.debug("trainOnTestEvalOnHoldout - hyper: {} - size: {}",
+                   c,
+                   idx.length)
       val r = trainOnTestEvalOnHoldout(idx, trainer, split, c).toSeq.toVec.map(
         _._1.obj)
 
@@ -52,6 +55,9 @@ case class RandomSearch(runif: () => Double)
                                       runif() * (max - min) + min) map (math.exp)
 
     val means = candidates.map { c =>
+      logger.debug("trainOnTestEvalOnHoldout - hyper: {} - size: {}",
+                   c,
+                   idx.length)
       val r = trainOnTestEvalOnHoldout(idx, trainer, split, c).toSeq.toVec.map(
         _._1.obj)
 
@@ -88,6 +94,9 @@ case class RandomSearch2D(runif: () => Double)
     }
 
     val means = candidates.map { c =>
+      logger.debug("trainOnTestEvalOnHoldout - hyper: {} - size: {}",
+                   c,
+                   idx.length)
       val r = trainOnTestEvalOnHoldout(idx, trainer, split, c).toSeq.toVec.map(
         _._1.obj)
 

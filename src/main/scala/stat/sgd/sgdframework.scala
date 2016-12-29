@@ -5,6 +5,9 @@ import org.saddle.linalg._
 import stat.regression.{Prediction, NamedPrediction}
 import slogging.StrictLogging
 import stat.matops._
+import stat.io.upicklers._
+import upickle.default._
+import upickle.Js
 
 trait EvaluateFit[E, @specialized(Double) P] extends Prediction[P] {
   def evaluateFit[T: MatOps](batch: Batch[T]): Double
@@ -53,6 +56,17 @@ case class NamedSgdResult[E, P](
   def evaluateFit2[T: MatOps](b: Batch[T]): E = raw.evaluateFit2(b)
 }
 
+object NamedSgdResult {
+
+  def writer[E, P]: Writer[NamedSgdResult[E, P]] =
+    implicitly[upickle.default.Writer[NamedSgdResult[E, P]]]
+
+  def write(x: NamedSgdResult[_, _]) = upickle.json.write(writer.write(x))
+  def read[E, P](s: String) =
+    implicitly[upickle.default.Reader[NamedSgdResult[E, P]]]
+      .read(upickle.json.read(s))
+}
+
 object Sgd extends StrictLogging {
 
   def optimize[RX: ST: ORD, I <: ItState, E, P](
@@ -67,10 +81,16 @@ object Sgd extends StrictLogging {
       convergedAverage: Int = 50,
       epsilon: Double = 1E-6,
       rng: scala.util.Random = new scala.util.Random(42)
-  )(implicit sdf: DataSourceFactory[FrameData[RX], Mat[Double]])
-    : Option[NamedSgdResult[E, P]] = {
-    val frameData = FrameData(f, yKey, addIntercept)
-    optimize(frameData,
+  ): Option[NamedSgdResult[E, P]] = {
+    val (x, y, std) =
+      createDesignMatrix(f, yKey, addIntercept)
+
+    val matrixData = MatrixData(trainingX = x,
+                                trainingY = y,
+                                penalizationMask =
+                                  Vec(0d +: vec.ones(x.numCols - 1).toSeq: _*))
+
+    optimize(matrixData,
              obj,
              pen,
              upd,
@@ -79,7 +99,7 @@ object Sgd extends StrictLogging {
              convergedAverage,
              epsilon,
              f.numRows,
-             rng)(DenseMatOps, sdf).map { result =>
+             rng).map { result =>
       val idx =
         obj
           .adaptParameterNames(
@@ -91,7 +111,7 @@ object Sgd extends StrictLogging {
     }
   }
 
-  def optimize[D, I <: ItState, E, P, M: MatOps](
+  def optimize[D, I <: ItState, E, P, M](
       data: D,
       obj: ObjectiveFunction[E, P],
       pen: Penalty[_],
@@ -103,14 +123,20 @@ object Sgd extends StrictLogging {
       batchSize: Int,
       rng: scala.util.Random
   )(implicit dsf: DataSourceFactory[D, M]): Option[SgdResult[E, P]] = {
-    optimize(dsf.apply(data, None, batchSize, rng),
+    val (n, d) = dsf.normalize(data)
+    import dsf.ops
+    optimize(dsf.apply(n, None, batchSize, rng),
              obj,
              pen,
              upd,
              maxIterations,
              minEpochs,
              convergedAverage,
-             epsilon)
+             epsilon).map { result =>
+      SgdResult(result.estimatesV,
+                result.model,
+                result.model.scaleBackCoefficients(result.estimatesV, d))
+    }
   }
 
   def optimize[I <: ItState, E, P, M: MatOps](
@@ -170,7 +196,7 @@ object Sgd extends StrictLogging {
               (minEpochs * dataSource.batchPerEpoch).toInt + 1,
               convergedAverage,
               epsilon).map { r =>
-      SgdResult(r, obj, obj.scaleBackCoefficients(r, dataSource.stdev))
+      SgdResult(r, obj, r)
     }
 
   }

@@ -11,8 +11,7 @@ case class DataSource[M](
     training: Iterator[Iterator[Batch[M]]],
     numCols: Int,
     allidx: Vec[Int],
-    batchPerEpoch: Int,
-    stdev: Vec[Double]
+    batchPerEpoch: Int
 )
 
 case class MatrixData(trainingX: Mat[Double],
@@ -23,16 +22,16 @@ case class SparseMatrixData(trainingX: SMat,
                             trainingY: Vec[Double],
                             penalizationMask: Vec[Double])
 
-case class FrameData[RX: ST: ORD](f: Frame[RX, String, Double],
-                                  yKey: String,
-                                  addIntercept: Boolean = true)
-
 trait DataSourceFactory[T, M] {
   implicit def ops: MatOps[M]
   def apply(t: T,
             allowedIdx: Option[Vec[Int]],
             batchSize: Int,
             rng: scala.util.Random): DataSource[M]
+
+  def getAllIdx(t: T): Vec[Int]
+
+  def normalize(t: T): (T, Vec[Double])
 }
 
 trait DataSourceFactories extends StrictLogging {
@@ -47,23 +46,30 @@ trait DataSourceFactories extends StrictLogging {
           .map(x => if (x == 0.0) 1.0 else 1d / x)
           .toVec
 
+      def normalize(t: MatrixData) = {
+        val std = stdev(t)
+        val scaledTrainingX =
+          t.trainingX.mDiagFromRight(std)
+        (MatrixData(scaledTrainingX, t.trainingY, t.penalizationMask), std)
+      }
+
+      def getAllIdx(t: MatrixData) = 0 until t.trainingX.numRows toVec
+
       def apply(t: MatrixData,
                 allowedIdx2: Option[Vec[Int]],
                 batchSize: Int,
                 rng: scala.util.Random): DataSource[Mat[Double]] = {
         import t._
 
+        logger.debug("Creating new data source. Size {}",
+                     allowedIdx2.map(_.length))
+
         val allowedIdx = allowedIdx2.getOrElse(0 until trainingX.numRows toVec)
-
-        val std = stdev(t)
-
-        val scaledTrainingX =
-          t.trainingX.mDiagFromRight(std)
 
         val fullBatch =
           if (batchSize >= allowedIdx.length)
             Some(
-              Batch(scaledTrainingX.takeRows(allowedIdx),
+              Batch(trainingX.takeRows(allowedIdx),
                     trainingY(allowedIdx),
                     penalizationMask))
           else None
@@ -91,7 +97,7 @@ trait DataSourceFactories extends StrictLogging {
 
                   logger.trace("New batch of size {} ", idx2.length)
 
-                  Batch(scaledTrainingX.takeRows(idx2),
+                  Batch(trainingX.takeRows(idx2),
                         trainingY(idx2),
                         penalizationMask)
                 }
@@ -103,39 +109,7 @@ trait DataSourceFactories extends StrictLogging {
         DataSource(iter,
                    trainingX.numCols,
                    (0 until trainingX.numRows).toVec,
-                   allowedIdx.length / batchSize + 1,
-                   std)
-      }
-
-    }
-
-  implicit def frameDataSource[RX: ST: ORD] =
-    new DataSourceFactory[FrameData[RX], Mat[Double]] {
-      implicit val ops = DenseMatOps
-
-      def apply(
-          data: FrameData[RX],
-          allowedIdx2: Option[Vec[Int]],
-          batchSize1: Int,
-          rng: scala.util.Random
-      ): DataSource[Mat[Double]] = {
-        import data._
-
-        val (x, y, std) =
-          createDesignMatrix(f, yKey, addIntercept)
-
-        val batchSize = math.min(batchSize1, x.numRows)
-
-        implicitly[DataSourceFactory[MatrixData, Mat[Double]]].apply(
-          MatrixData(trainingX = x,
-                     trainingY = y,
-                     penalizationMask =
-                       Vec(0d +: vec.ones(x.numCols - 1).toSeq: _*)),
-          allowedIdx = None,
-          batchSize = batchSize,
-          rng = rng
-        )
-
+                   allowedIdx.length / batchSize + 1)
       }
 
     }
@@ -157,6 +131,10 @@ trait DataSourceFactories extends StrictLogging {
 
       /* todo provide a meaningful implementation here */
       def stdev(t: SparseMatrixData) = vec.ones(sparse.numCols(t.trainingX))
+
+      def normalize(t: SparseMatrixData) = (t, stdev(t))
+
+      def getAllIdx(t: SparseMatrixData) = 0 until t.trainingX.size toVec
 
       def apply(t: SparseMatrixData,
                 allowedIdx2: Option[Vec[Int]],
@@ -197,8 +175,7 @@ trait DataSourceFactories extends StrictLogging {
         DataSource(iter,
                    cidx.length,
                    sparse.rowIx(trainingX),
-                   allowedIdx.length / batchSize + 1,
-                   stdev(t))
+                   allowedIdx.length / batchSize + 1)
       }
     }
 }

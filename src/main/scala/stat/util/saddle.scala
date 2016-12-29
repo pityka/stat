@@ -10,17 +10,20 @@ object saddle {
 
   def prep[R: ST: ORD](f: Frame[R, String, String],
                        missingMode: MissingMode,
+                       forceCategorical: Set[String] = Set[String](),
                        naString: Set[String] = Set("na", "n/a"),
                        normalize: Boolean = false) = {
     import org.saddle.io._
-    val categorical = nonNumericColumns(f, naString)
+    val categorical = nonNumericColumns(f, naString, forceCategorical)
 
     val trainingNumeric = missing(
-      onehot(missingCategorical(f,
-                                missingMode,
-                                categorical.map(_._1).toSet,
-                                naString),
-             categorical.map(_._1).toSet).mapValues(CsvParser.parseDouble),
+      onehot(
+        missingCategorical(f,
+                           missingMode,
+                           categorical.map(_._1).toSet ++ forceCategorical,
+                           naString),
+        categorical.map(_._1).toSet ++ forceCategorical)
+        .mapValues(CsvParser.parseDouble),
       missingMode)
 
     val normed =
@@ -33,10 +36,11 @@ object saddle {
 
   def nonNumericColumns[R: ST: ORD](
       f: Frame[R, String, String],
-      naString: Set[String] = Set("na", "n/a")): Seq[(String, Seq[String])] =
+      naString: Set[String] = Set("na", "n/a"),
+      force: Set[String]): Seq[(String, Seq[String])] =
     f.toColSeq.filter {
       case (cx, series) =>
-        series.toVec.exists(
+        force.contains(cx) || series.toVec.exists(
           d =>
             if (naString.contains(d.toLowerCase.trim)) false
             else

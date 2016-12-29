@@ -6,6 +6,45 @@ import org.scalatest.FunSuite
 import stat._
 import stat.crossvalidation.Split
 
+class LMOverfitRandomSuite extends FunSuite {
+  slogging.LoggerConfig.factory = slogging.PrintLoggerFactory()
+  slogging.LoggerConfig.level = slogging.LogLevel.DEBUG
+  test("random ") {
+    val samples = 100
+    val nCol = 200
+    val columns = nCol * samples
+    val design = mat.randn(samples, columns)
+    val betas: Vec[Double] = vec.randn(20) concat vec.zeros(
+        nCol * samples - 20)
+    val rng = new scala.util.Random(42)
+    val ly = vec.randn(samples)
+
+    val fitFista = Cv.fitWithCV(
+      MatrixData(design, ly, penalizationMask = vec.ones(columns)),
+      sgd.LinearRegression,
+      L1(1.0),
+      FistaUpdater,
+      Split(0.9, rng),
+      stat.crossvalidation.KFold(5, rng, 1),
+      stat.crossvalidation.RandomSearch(() => rng.nextDouble),
+      hMin = -6d,
+      hMax = 15d,
+      hN = 10,
+      maxIterations = 3000,
+      minEpochs = 1,
+      convergedAverage = 2,
+      epsilon = 1E-2,
+      batchSize = design.numRows,
+      maxEvalSize = design.numRows,
+      rng = rng
+    )
+    println(fitFista)
+
+    assert(fitFista._1.misc > 0.95)
+
+  }
+}
+
 class LMRandomSuite extends FunSuite {
   slogging.LoggerConfig.factory = slogging.PrintLoggerFactory()
   slogging.LoggerConfig.level = slogging.LogLevel.DEBUG

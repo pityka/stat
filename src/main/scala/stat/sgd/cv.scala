@@ -35,11 +35,18 @@ object Cv {
       convergedAverage: Int,
       epsilon: Double,
       rng: scala.util.Random
-  )(implicit dsf: DataSourceFactory[FrameData[RX], Mat[Double]])
-    : (EvalR[E], NamedSgdResult[E, P]) = {
+  ): (EvalR[E], NamedSgdResult[E, P]) = {
+
+    val (x, y, std) =
+      createDesignMatrix(data, yKey, addIntercept)
+
+    val matrixData = MatrixData(trainingX = x,
+                                trainingY = y,
+                                penalizationMask =
+                                  Vec(0d +: vec.ones(x.numCols - 1).toSeq: _*))
 
     val (eval, result) =
-      fitWithCV(FrameData(data, yKey, addIntercept),
+      fitWithCV(matrixData,
                 obj,
                 pen,
                 upd,
@@ -55,7 +62,7 @@ object Cv {
                 epsilon,
                 data.numRows,
                 data.numRows,
-                rng)(dsf)
+                rng)
 
     val idx =
       obj
@@ -89,7 +96,9 @@ object Cv {
   )(implicit dsf: DataSourceFactory[D, M]): (EvalR[E], SgdResult[E, P]) = {
     import dsf.ops
 
-    val training = train(data,
+    val (normed, std) = dsf.normalize(data)
+
+    val training = train(normed,
                          obj,
                          pen,
                          upd,
@@ -103,8 +112,7 @@ object Cv {
 
     val nested = Train.nestedSearch(training, split, hMin, hMax, hN, search)
 
-    val ds = dsf.apply(data, None, batchSize, rng)
-    val allidx = ds.allidx
+    val allidx = dsf.getAllIdx(normed)
 
     val (eval, estimates) = trainOnTestEvalOnHoldout(
       allidx,
@@ -113,7 +121,7 @@ object Cv {
     ).next
 
     val prediction =
-      SgdResult(estimates, obj, obj.scaleBackCoefficients(estimates, ds.stdev))
+      SgdResult(estimates, obj, obj.scaleBackCoefficients(estimates, std))
     (eval, prediction)
 
   }
@@ -134,7 +142,7 @@ object Cv {
     new Train[E, H] with StrictLogging {
       import dsf.ops
       def train(idx: Vec[Int], hyper: H): Option[Eval[E]] = {
-        logger.trace("Train on {}", idx.length)
+        logger.debug("Train on {}", idx.length)
         Sgd
           .optimize(dsf.apply(data, Some(idx), batchSize, rng),
                     obj,
