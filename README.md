@@ -1,6 +1,6 @@
 # Experimental Scala library for simple data analysis methods
 
-1. Linear, logistic and multinomial regularized regression
+1. Linear, logistic and multinomial regularized regression (L1, L2, ElasticNet)
 2. stochastic gradient descent, FISTA, coordinate descent
 3. cross validation
 4. Basic sparse matrix operations
