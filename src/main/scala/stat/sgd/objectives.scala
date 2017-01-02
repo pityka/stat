@@ -5,6 +5,14 @@ import org.saddle.linalg._
 import stat.matops._
 
 trait ObjectiveFunction[E, @specialized(Double) P] {
+
+  // TODO
+  def jacobi1D[T: MatOps](b: Vec[Double], batch: Batch[T], i: Int): Double =
+    ???
+
+// TODO
+  def hessian1D[T: MatOps](p: Vec[Double], batch: Batch[T], i: Int): Double =
+    ???
   def jacobi[T: MatOps](b: Vec[Double], batch: Batch[T]): Vec[Double]
   def hessian[T: MatOps](p: Vec[Double], batch: Batch[T]): Mat[Double]
   def minusHessianLargestEigenValue[T: MatOps](p: Vec[Double],
@@ -39,12 +47,25 @@ object LinearRegression extends ObjectiveFunction[Double, Double] {
     (yMinusXb vv yMinusXb) * (-1)
   }
 
+  // TODO
+  override def jacobi1D[T: MatOps](b: Vec[Double],
+                                   batch: Batch[T],
+                                   i: Int): Double = {
+    jacobi(b, batch).raw(i)
+  }
+
   def jacobi[T: MatOps](b: Vec[Double], batch: Batch[T]): Vec[Double] = {
     val y = batch.y
     val X = batch.x
     val yMinusXb = y - (X mv b)
     X tmv yMinusXb
   }
+
+  // TODO
+  override def hessian1D[T: MatOps](p: Vec[Double],
+                                    batch: Batch[T],
+                                    i: Int): Double =
+    hessian(p, batch).raw(i, i)
 
   def hessian[T: MatOps](p: Vec[Double], batch: Batch[T]): Mat[Double] = {
     batch.x.innerM * (-1)
