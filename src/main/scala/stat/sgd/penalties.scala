@@ -11,6 +11,8 @@ trait Penalty[H] {
   def hessian(p: Vec[Double], penalizationMask: Vec[Double]): Mat[Double]
   def apply(b: Vec[Double], penalizationMask: Vec[Double]): Double
   def withHyperParameter(h: H): Penalty[H]
+  def proximal1D(b: Double, penalizationMask: Double, alpha: Double): Double =
+    ???
 }
 
 case class L2(lambda: Double) extends Penalty[Double] {
@@ -32,6 +34,10 @@ case class L2(lambda: Double) extends Penalty[Double] {
 }
 
 case class L1(lambda: Double) extends Penalty[Double] {
+
+  override def proximal1D(w: Double, penalizationMask: Double, alpha: Double) =
+    math.signum(w) * math.max(0.0,
+                              math.abs(w) - lambda * alpha * penalizationMask)
 
   def proximal(w: Vec[Double], penalizationMask: Vec[Double], alpha: Double) =
     w.zipMap(penalizationMask)((old, pw) =>

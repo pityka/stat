@@ -17,28 +17,98 @@ class LassoSuite extends FunSpec with Matchers {
       .withRowIndex(0)
       .mapValues(_.toDouble)
 
-    it("lambda=0") {
+    // it("lambda=0") {
+    //
+    //   // val lassoresult = LASSO.fit(frame, "V22", 0.0, addIntercept = true)
+    //   //
+    //   // val ridgeresult = Ridge.fit(frame, "V22", 0.0, addIntercept = true)
+    //
+    //   val sgdresult =
+    //     stat.sgd.Sgd
+    //       .optimize(frame,
+    //                 "V22",
+    //                 stat.sgd.LinearRegression,
+    //                 stat.sgd.L2(0d),
+    //                 stat.sgd.NewtonUpdater)
+    //       .get
+    //
+    //   val sgdresultfista =
+    //     stat.sgd.Sgd
+    //       .optimize(frame,
+    //                 "V22",
+    //                 stat.sgd.LinearRegression,
+    //                 stat.sgd.L2(0d),
+    //                 stat.sgd.FistaUpdater)
+    //       .get
+    //
+    //
+    //
+    //   val ln =
+    //     LinearRegression.linearRegression(frame, "V22", addIntercept = true)
+    //
+    //   val glmnet = Vector(
+    //     0.110947733,
+    //     1.378783189,
+    //     0.023275142,
+    //     0.763496730,
+    //     0.060802214,
+    //     -0.901598952,
+    //     0.614425728,
+    //     0.118277706,
+    //     0.397670502,
+    //     -0.031395521,
+    //     0.128445909,
+    //     0.247276619,
+    //     -0.064775290,
+    //     -0.045980087,
+    //     -1.159522599,
+    //     -0.138015549,
+    //     -0.045678862,
+    //     -0.048419881,
+    //     0.052383392,
+    //     -0.002729424,
+    //     -1.144092052
+    //   )
+    //
+    //   // ((ln.estimatesVV.toSeq) zip lassoresult.estimatesVV.toSeq).foreach {
+    //   //   case (x, y) =>
+    //   //     (math.abs(x - y) < 0.01) should equal(true)
+    //   // }
+    //   //
+    //   // (glmnet zip ridgeresult.estimatesVV.toSeq).foreach {
+    //   //   case (x, y) =>
+    //   //     (math.abs(x - y) < 0.01) should equal(true)
+    //   // }
+    //
+    //   // (glmnet zip lassoresult.estimatesVV.toSeq).foreach {
+    //   //   case (x, y) =>
+    //   //     (math.abs(x - y) < 0.01) should equal(true)
+    //   // }
+    //
+    //   (glmnet zip sgdresult.estimatesV.toSeq).foreach {
+    //     case (x, y) =>
+    //       (math.abs(x - y) < 0.01) should equal(true)
+    //   }
+    //
+    //   (glmnet zip sgdresultfista.estimatesV.toSeq).foreach {
+    //     case (x, y) =>
+    //       (math.abs(x - y) < 0.01) should equal(true)
+    //   }
+    //
+    // }
 
-      // val lassoresult = LASSO.fit(frame, "V22", 0.0, addIntercept = true)
-      //
-      // val ridgeresult = Ridge.fit(frame, "V22", 0.0, addIntercept = true)
+    it("lambda=0.5 L1") {
 
-      val sgdresult =
+      // val lassoresult = LASSO.fit(frame, "V22", 0.5)
+
+      val sgdFista =
         stat.sgd.Sgd
           .optimize(frame,
                     "V22",
                     stat.sgd.LinearRegression,
-                    stat.sgd.L2(0d),
-                    stat.sgd.NewtonUpdater)
-          .get
-
-      val sgdresultfista =
-        stat.sgd.Sgd
-          .optimize(frame,
-                    "V22",
-                    stat.sgd.LinearRegression,
-                    stat.sgd.L2(0d),
-                    stat.sgd.FistaUpdater)
+                    stat.sgd.L1(0.5d),
+                    stat.sgd.FistaUpdater,
+                    standardize = false)
           .get
 
       val ln =
@@ -107,6 +177,15 @@ class LassoSuite extends FunSpec with Matchers {
                     stat.sgd.L1(0.5d),
                     stat.sgd.FistaUpdater)
           .get
+
+      val sgdCD =
+        stat.sgd.Sgd.optimize(frame,
+                              "V22",
+                              stat.sgd.LinearRegression,
+                              stat.sgd.L1(0.5d),
+                              stat.sgd.CoordinateDescentUpdater)
+
+      println(sgdCD)
 
       // this is glmnet lambda=0.5/200 because they use different weighting inside the objective function
       val glmnet = Vector(
@@ -199,6 +278,17 @@ class LassoSuite extends FunSpec with Matchers {
                     stat.sgd.L1(50d),
                     stat.sgd.FistaUpdater)
           .get
+
+      val sgdCD =
+        stat.sgd.Sgd
+          .optimize(frame,
+                    "V22",
+                    stat.sgd.LinearRegression,
+                    stat.sgd.L1(50d),
+                    stat.sgd.CoordinateDescentUpdater)
+          .get
+
+      println(sgdCD)
 
       val expected = Vector(0.2624592395351088,
                             1.0036242125719534,
@@ -360,65 +450,203 @@ class LassoSuite extends FunSpec with Matchers {
     //   val lassoresult =
     //     PenalizedWithSCAD.fit(frame, "V22", 10)
     //
-    //   // val sgdresultFista =
-    //   //   stat.sgd.Sgd.optimize(frame,
-    //   //                         "V22",
-    //   //                         stat.sgd.LinearRegression,
-    //   //                         stat.sgd.SCAD(50d),
-    //   //                         stat.sgd.FistaUpdater,
-    //   //                         standardize = false)
+    // it("lambda=50 against penalized L2") {
     //
-    //   // println(sgdresultFista)
+    //   // val result = Ridge.fit(frame, "V22", 50d)
     //
-    //   val ncvreg = Seq(
-    //     0.1308801426,
-    //     1.3796539851,
-    //     0.0000000000,
-    //     0.7659849860,
-    //     0.0072198822,
-    //     -0.9020176288,
-    //     0.6060924633,
-    //     0.0447846110,
-    //     0.3972901012,
-    //     0.0000000000,
-    //     0.0472768243,
-    //     0.2569556151,
-    //     0.0000000000,
-    //     -0.0092788275,
-    //     -1.1364997738,
-    //     -0.0331382513,
-    //     -0.0005243524,
-    //     0.0000000000,
-    //     0.0003476129,
-    //     0.0000000000,
-    //     -1.1584229366
-    //   )
+    //   val sgdresult =
+    //     stat.sgd.Sgd
+    //       .optimize(frame,
+    //                 "V22",
+    //                 stat.sgd.LinearRegression,
+    //                 stat.sgd.L2(50d),
+    //                 stat.sgd.NewtonUpdater,
+    //                 standardize = false)
+    //       .get
     //
-    //   // println(lassoresult.coefficients)
+    //   val sgdresultFista =
+    //     stat.sgd.Sgd
+    //       .optimize(frame,
+    //                 "V22",
+    //                 stat.sgd.LinearRegression,
+    //                 stat.sgd.L2(50d),
+    //                 stat.sgd.FistaUpdater,
+    //                 standardize = false)
+    //       .get
     //
-    //   (ncvreg zip lassoresult.estimatesVV.toSeq).foreach {
-    //     case (x, y) =>
-    //       if (!(math.abs(x - y) < 0.2)) {
-    //         println("penalized: " + x + " vs my: " + y)
-    //       }
-    //       (math.abs(x - y) < 0.2) should equal(true)
-    //   }
+    //   val penalized = IndexedSeq(0.305767252,
+    //                              0.973779894,
+    //                              0.068934404,
+    //                              0.497185503,
+    //                              -0.043501453,
+    //                              -0.603505652,
+    //                              0.517660241,
+    //                              0.112092970,
+    //                              0.282919550,
+    //                              -0.058310925,
+    //                              0.010746792,
+    //                              0.173727036,
+    //                              -0.057283446,
+    //                              -0.006831348,
+    //                              -0.826476739,
+    //                              -0.030049603,
+    //                              0.013115346,
+    //                              0.017033835,
+    //                              0.061459813,
+    //                              0.014791350,
+    //                              -0.686263503)
     //
-    //   // (ncvreg zip sgdresultFista.estimatesV.toSeq).foreach {
-    //   //   case (x, y) =>
-    //   //     if (!(math.abs(x - y) < 0.2)) {
-    //   //       println("penalized: " + x + " vs sgd: " + y)
-    //   //     }
-    //   //     (math.abs(x - y) < 0.2) should equal(true)
-    //   // }
-    //
-    //   // (glmnet zip lassoresult.coefficients.toSeq).foreach {
+    //   // (result.estimatesVV.toSeq zip sgdresultFista.estimatesV.toSeq).foreach {
     //   //   case (x, y) =>
     //   //     if (!(math.abs(x - y) < 0.01)) {
-    //   //       println("glmnet: " + x + " vs my: " + y)
+    //   //       // println("my1: " + x + " vs my2: " + y)
     //   //     }
-    //   //     (math.abs(x - y) < 0.01) should equal(true)
+    //   //     (math.abs(x - y) < 0.1) should equal(true)
     //   // }
+    //
+    //   (sgdresult.estimatesV.toSeq zip sgdresultFista.estimatesV.toSeq).foreach {
+    //     case (x, y) =>
+    //       if (!(math.abs(x - y) < 0.01)) {
+    //         println("sgd gradient: " + x + " vs sgd fista: " + y)
+    //       }
+    //       (math.abs(x - y) < 0.01) should equal(true)
+    //   }
+    //
+    //   // (penalized zip result.estimatesVV.toSeq).foreach {
+    //   //   case (x, y) =>
+    //   //     if (!(math.abs(x - y) < 0.01)) {
+    //   //       // println("penalized: " + x + " vs my: " + y)
+    //   //     }
+    //   //     (math.abs(x - y) < 0.1) should equal(true)
+    //   // }
+    //
+    //   (penalized zip sgdresult.estimatesV.toSeq).foreach {
+    //     case (x, y) =>
+    //       if (!(math.abs(x - y) < 0.01)) {
+    //         println("penalized: " + x + " vs my: " + y)
+    //       }
+    //       (math.abs(x - y) < 0.01) should equal(true)
+    //   }
+    //
+    //   (penalized zip sgdresultFista.estimatesV.toSeq).foreach {
+    //     case (x, y) =>
+    //       if (!(math.abs(x - y) < 0.01)) {
+    //         println("penalized: " + x + " vs my: " + y)
+    //       }
+    //       (math.abs(x - y) < 0.01) should equal(true)
+    //   }
+    //
+    // }
+    //
+    // // it("scad lambda=50 against ncvreg") {
+    // //   val lassoresult =
+    // //     PenalizedWithSCAD.fit(frame, "V22", 10)
+    // //
+    // //   // val sgdresultFista =
+    // //   //   stat.sgd.Sgd.optimize(frame,
+    // //   //                         "V22",
+    // //   //                         stat.sgd.LinearRegression,
+    // //   //                         stat.sgd.SCAD(50d),
+    // //   //                         stat.sgd.FistaUpdater,
+    // //   //                         standardize = false)
+    // //
+    // //   // println(sgdresultFista)
+    // //
+    // //   val ncvreg = Seq(
+    // //     0.1308801426,
+    // //     1.3796539851,
+    // //     0.0000000000,
+    // //     0.7659849860,
+    // //     0.0072198822,
+    // //     -0.9020176288,
+    // //     0.6060924633,
+    // //     0.0447846110,
+    // //     0.3972901012,
+    // //     0.0000000000,
+    // //     0.0472768243,
+    // //     0.2569556151,
+    // //     0.0000000000,
+    // //     -0.0092788275,
+    // //     -1.1364997738,
+    // //     -0.0331382513,
+    // //     -0.0005243524,
+    // //     0.0000000000,
+    // //     0.0003476129,
+    // //     0.0000000000,
+    // //     -1.1584229366
+    // //   )
+    // //
+    // //   // println(lassoresult.coefficients)
+    // //
+    // //   (ncvreg zip lassoresult.estimatesVV.toSeq).foreach {
+    // //     case (x, y) =>
+    // //       if (!(math.abs(x - y) < 0.2)) {
+    // //         println("penalized: " + x + " vs my: " + y)
+    // //       }
+    // //       (math.abs(x - y) < 0.2) should equal(true)
+    // //   }
+    // //
+    // //   // (ncvreg zip sgdresultFista.estimatesV.toSeq).foreach {
+    // //   //   case (x, y) =>
+    // //   //     if (!(math.abs(x - y) < 0.2)) {
+    // //   //       println("penalized: " + x + " vs sgd: " + y)
+    // //   //     }
+    // //   //     (math.abs(x - y) < 0.2) should equal(true)
+    // //   // }
+    // //
+    // //   // (glmnet zip lassoresult.coefficients.toSeq).foreach {
+    // //   //   case (x, y) =>
+    // //   //     if (!(math.abs(x - y) < 0.01)) {
+    // //   //       println("glmnet: " + x + " vs my: " + y)
+    // //   //     }
+    // //   //     (math.abs(x - y) < 0.01) should equal(true)
+    // //   // }
+    // //
+    // // }
+    //
+    // it("elastic net  against penalized") {
+    //
+    //   val sgdresultFista =
+    //     stat.sgd.Sgd
+    //       .optimize(frame,
+    //                 "V22",
+    //                 stat.sgd.LinearRegression,
+    //                 stat.sgd.ElasticNet(50d, 25d),
+    //                 stat.sgd.FistaUpdater,
+    //                 standardize = false)
+    //       .get
+    //
+    //   val penalized = Seq(
+    //     0.329945491,
+    //     0.849655715,
+    //     0.000000000,
+    //     0.206803964,
+    //     0.000000000,
+    //     -0.322154692,
+    //     0.261500178,
+    //     0.000000000,
+    //     0.008798273,
+    //     0.000000000,
+    //     0.000000000,
+    //     0.000000000,
+    //     0.000000000,
+    //     0.000000000,
+    //     -0.723725582,
+    //     0.000000000,
+    //     0.000000000,
+    //     0.000000000,
+    //     0.000000000,
+    //     0.000000000,
+    //     -0.363951587
+    //   )
+    //
+    //   (penalized zip sgdresultFista.estimatesV.toSeq).foreach {
+    //     case (x, y) =>
+    //       if (!(math.abs(x - y) < 0.05)) {
+    //         println("penalized: " + x + " vs my: " + y)
+    //       }
+    //       (math.abs(x - y) < 0.05) should equal(true)
+    //   }
     //
     // }
 
