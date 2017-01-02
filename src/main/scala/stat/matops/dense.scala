@@ -28,6 +28,7 @@ object DenseMatOps extends MatOps[Mat[Double]] with LinearMap[Mat[Double]] {
   def numRows(t: T): Int = t.numRows
   def numCols(t: T): Int = t.numCols
   def row(t: T, i: Int): Vec[Double] = t.row(i)
+  def col(t: T, i: Int): Vec[Double] = t.col(i)
   def raw(t: T, i: Int, j: Int): Double = t.raw(i, j)
   def rows(t: T): IndexedSeq[V] = t.rows
   def svd(t: T, i: Int): SVDResult = t.svd(i)

@@ -39,6 +39,7 @@ trait MatOps[T] extends LinearMap[T] {
   def numRows(t: T): Int
   def numCols(t: T): Int
   def row(t: T, i: Int): V
+  def col(t: T, j: Int): V
   def raw(t: T, i: Int, j: Int): Double
   def rows(t: T): IndexedSeq[V]
 }

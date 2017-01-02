@@ -8,7 +8,7 @@ import stat.crossvalidation.Split
 
 class LMOverfitRandomSuite extends FunSuite {
   slogging.LoggerConfig.factory = slogging.PrintLoggerFactory()
-  slogging.LoggerConfig.level = slogging.LogLevel.DEBUG
+  slogging.LoggerConfig.level = slogging.LogLevel.TRACE
   test("random ") {
     val samples = 100
     val nCol = 200

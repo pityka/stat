@@ -61,8 +61,9 @@ trait DataSourceFactories extends StrictLogging {
                 rng: scala.util.Random): DataSource[Mat[Double]] = {
         import t._
 
-        logger.debug("Creating new data source. Size {}",
-                     allowedIdx2.map(_.length))
+        logger.trace("Creating new data source. Size {} , {}",
+                     allowedIdx2.map(_.length),
+                     allowedIdx2.map(_.toSeq))
 
         val allowedIdx = allowedIdx2.getOrElse(0 until trainingX.numRows toVec)
 

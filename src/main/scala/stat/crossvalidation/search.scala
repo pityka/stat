@@ -27,14 +27,14 @@ case object GridSearch
 
       val rmean = if (r.count > 1) Some(r.mean) else None
 
-      logger.debug("gridSearch {} : {}", c, rmean)
+      logger.debug("gridSearch. Hyper: {} : mean: {}", c, rmean)
       (c, rmean)
     }.filter(_._2.isDefined).map(x => x._1 -> x._2.get)
 
     val optim: Option[Double] =
       if (means.isEmpty) None else Some(means.maxBy(_._2)._1)
 
-    logger.debug("gridSearch. Optim: {}", optim)
+    logger.debug("gridSearch. Chosen hyperparameter: {}", optim)
 
     optim
   }
@@ -63,14 +63,14 @@ case class RandomSearch(runif: () => Double)
 
       val rmean = if (r.count > 1) Some(r.mean) else None
 
-      logger.debug("randomSearch1D {} : {}", c, rmean)
+      logger.debug("randomSearch1D. Hyper: {} : mean: {}", c, rmean)
       (c, rmean)
     }.filter(_._2.isDefined).map(x => x._1 -> x._2.get)
 
     val optim: Option[Double] =
       if (means.isEmpty) None else Some(means.maxBy(_._2)._1)
 
-    logger.debug("randomSearch1D. Optim: {}", optim)
+    logger.debug("randomSearch1D. Chosen hyperparameter: {}", optim)
 
     optim
   }
@@ -102,14 +102,14 @@ case class RandomSearch2D(runif: () => Double)
 
       val rmean = if (r.count > 1) Some(r.mean) else None
 
-      logger.debug("randomSearch1D {} : {}", c, rmean)
+      logger.debug("randomSearch1D. Hyper: {} : mean: {}", c, rmean)
       (c, rmean)
     }.filter(_._2.isDefined).map(x => x._1 -> x._2.get)
 
     val optim: Option[(Double, Double)] =
       if (means.isEmpty) None else Some(means.maxBy(_._2)._1)
 
-    logger.debug("randomSearch1D. Optim: {}", optim)
+    logger.debug("randomSearch1D. Chosen hyperparameter: {}", optim)
 
     optim
   }

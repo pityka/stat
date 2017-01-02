@@ -159,6 +159,9 @@ object Sgd extends StrictLogging {
                   tail: Int,
                   epsilon: Double): Option[Vec[Double]] = {
       val t = from(start).zipWithIndex
+        .map(x => {
+          if (x._1.convergence.isNaN) throw new RuntimeException("NaN?"); x
+        })
         .take(max)
         .drop(min)
         .filter(_._1.convergence < epsilon)
@@ -187,7 +190,9 @@ object Sgd extends StrictLogging {
           n
         })
 
+      logger.trace((start, data.next).toString)
       val f1 = updater.next(start, data.next, obj, pen, None)
+      logger.trace(f1.toString)
       loop(f1)
     }
 

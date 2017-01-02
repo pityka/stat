@@ -186,6 +186,7 @@ object SparseMatOps extends MatOps[SMat] {
   def numRows(t: T): Int = stat.sparse.numRows(t)
   def numCols(t: T): Int = stat.sparse.numCols(t)
   def row(t: T, i: Int): SVec = t(i)
+  def col(t: T, i: Int): SVec = ???
   def raw(t: T, i: Int, j: Int): Double = get(t(i), j)
   def rows(t: T): IndexedSeq[V] = t
 

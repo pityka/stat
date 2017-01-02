@@ -97,18 +97,26 @@ class LassoSuite extends FunSpec with Matchers {
     //
     // }
 
-    it("lambda=0.5 L1") {
+    it("lambda=0.5 L2") {
 
       // val lassoresult = LASSO.fit(frame, "V22", 0.5)
 
-      val sgdFista =
+      val sgdresult =
         stat.sgd.Sgd
           .optimize(frame,
                     "V22",
                     stat.sgd.LinearRegression,
-                    stat.sgd.L1(0.5d),
-                    stat.sgd.FistaUpdater,
-                    standardize = false)
+                    stat.sgd.L2(0.5d),
+                    stat.sgd.NewtonUpdater)
+          .get
+
+      val sgdresultfista =
+        stat.sgd.Sgd
+          .optimize(frame,
+                    "V22",
+                    stat.sgd.LinearRegression,
+                    stat.sgd.L2(0.5d),
+                    stat.sgd.FistaUpdater)
           .get
 
       val ln =
@@ -179,13 +187,15 @@ class LassoSuite extends FunSpec with Matchers {
           .get
 
       val sgdCD =
-        stat.sgd.Sgd.optimize(frame,
-                              "V22",
-                              stat.sgd.LinearRegression,
-                              stat.sgd.L1(0.5d),
-                              stat.sgd.CoordinateDescentUpdater)
-
-      println(sgdCD)
+        stat.sgd.Sgd
+          .optimize(frame,
+                    "V22",
+                    stat.sgd.LinearRegression,
+                    stat.sgd.L1(0.5d),
+                    stat.sgd.CoordinateDescentUpdater,
+                    minEpochs = 1d,
+                    convergedAverage = 10)
+          .get
 
       // this is glmnet lambda=0.5/200 because they use different weighting inside the objective function
       val glmnet = Vector(
@@ -260,6 +270,14 @@ class LassoSuite extends FunSpec with Matchers {
           (math.abs(x - y) < 0.01) should equal(true)
       }
 
+      (glmnet zip sgdCD.scaledEstimatesV.toSeq).foreach {
+        case (x, y) =>
+          if (!(math.abs(x - y) < 0.01)) {
+            println("glmnet: " + x + " vs sgd CD: " + y)
+          }
+          (math.abs(x - y) < 0.01) should equal(true)
+      }
+
       // (glmnet zip sgdresult.estimatesV.toSeq).foreach {
       //   case (x, y) =>
       //     (math.abs(x - y) < 0.01) should equal(true)
@@ -285,10 +303,10 @@ class LassoSuite extends FunSpec with Matchers {
                     "V22",
                     stat.sgd.LinearRegression,
                     stat.sgd.L1(50d),
-                    stat.sgd.CoordinateDescentUpdater)
+                    stat.sgd.CoordinateDescentUpdater,
+                    minEpochs = 1d,
+                    convergedAverage = 2)
           .get
-
-      println(sgdCD)
 
       val expected = Vector(0.2624592395351088,
                             1.0036242125719534,
@@ -328,6 +346,14 @@ class LassoSuite extends FunSpec with Matchers {
           (math.abs(x - y) < 0.05) should equal(true)
       }
 
+      (expected zip sgdCD.scaledEstimatesV.toSeq).foreach {
+        case (x, y) =>
+          if (!(math.abs(x - y) < 0.05)) {
+            println("penalized: " + x + " vs sgd cd: " + y)
+          }
+          (math.abs(x - y) < 0.05) should equal(true)
+      }
+
       // (glmnet zip lassoresult.coefficients.toSeq).foreach {
       //   case (x, y) =>
       //     if (!(math.abs(x - y) < 0.01)) {
@@ -358,6 +384,17 @@ class LassoSuite extends FunSpec with Matchers {
                     stat.sgd.LinearRegression,
                     stat.sgd.L2(50d),
                     stat.sgd.FistaUpdater)
+          .get
+
+      val sgdresultCD =
+        stat.sgd.Sgd
+          .optimize(frame,
+                    "V22",
+                    stat.sgd.LinearRegression,
+                    stat.sgd.L2(50d),
+                    stat.sgd.CoordinateDescentUpdater,
+                    minEpochs = 1d,
+                    convergedAverage = 2)
           .get
 
       val expected = Vector(0.31779827279977835,
@@ -431,7 +468,7 @@ class LassoSuite extends FunSpec with Matchers {
       (expected zip sgdresult.scaledEstimatesV.toSeq).foreach {
         case (x, y) =>
           if (!(math.abs(x - y) < 0.01)) {
-            println("penalized: " + x + " vs my: " + y)
+            println("penalized: " + x + " vs my newton: " + y)
           }
           (math.abs(x - y) < 0.01) should equal(true)
       }
@@ -439,7 +476,15 @@ class LassoSuite extends FunSpec with Matchers {
       (expected zip sgdresultFista.scaledEstimatesV.toSeq).foreach {
         case (x, y) =>
           if (!(math.abs(x - y) < 0.01)) {
-            println("penalized: " + x + " vs my: " + y)
+            println("penalized: " + x + " vs my fista: " + y)
+          }
+          (math.abs(x - y) < 0.01) should equal(true)
+      }
+
+      (expected zip sgdresultCD.scaledEstimatesV.toSeq).foreach {
+        case (x, y) =>
+          if (!(math.abs(x - y) < 0.01)) {
+            println("penalized: " + x + " vs my cd: " + y)
           }
           (math.abs(x - y) < 0.01) should equal(true)
       }
@@ -661,6 +706,17 @@ class LassoSuite extends FunSpec with Matchers {
                     stat.sgd.FistaUpdater)
           .get
 
+      val sgdresultCD =
+        stat.sgd.Sgd
+          .optimize(frame,
+                    "V22",
+                    stat.sgd.LinearRegression,
+                    stat.sgd.ElasticNet(50d, 25d),
+                    stat.sgd.CoordinateDescentUpdater,
+                    minEpochs = 1d,
+                    convergedAverage = 2)
+          .get
+
       val penalized = Seq(
         0.329945491,
         0.849655715,
@@ -688,7 +744,15 @@ class LassoSuite extends FunSpec with Matchers {
       (penalized zip sgdresultFista.estimatesV.toSeq).foreach {
         case (x, y) =>
           if (!(math.abs(x - y) < 0.05)) {
-            println("penalized: " + x + " vs my: " + y)
+            println("penalized: " + x + " vs my fista: " + y)
+          }
+          (math.abs(x - y) < 0.05) should equal(true)
+      }
+
+      (penalized zip sgdresultCD.estimatesV.toSeq).foreach {
+        case (x, y) =>
+          if (!(math.abs(x - y) < 0.05)) {
+            println("penalized: " + x + " vs my cd: " + y)
           }
           (math.abs(x - y) < 0.05) should equal(true)
       }

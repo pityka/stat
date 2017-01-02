@@ -17,7 +17,7 @@ package object crossvalidation extends StrictLogging {
       .generate(idx)
       .map {
         case (test, holdout) =>
-          logger.debug("train: {} , eval: {} ", test.length, holdout.length)
+          logger.trace("train: {} , eval: {} ", test.length, holdout.length)
           trainer.train(test, hyper).map { fit =>
             (fit.eval(holdout), fit.estimatesV)
           }
@@ -34,7 +34,7 @@ package object crossvalidation extends StrictLogging {
       .generate(idx)
       .map {
         case (test, holdout) =>
-          logger.debug("train: {} , eval: {} ", test.length, holdout.length)
+          logger.trace("train: {} , eval: {} ", test.length, holdout.length)
           trainer.train(test).map { fit =>
             (fit.eval(holdout), fit.estimatesV)
           }

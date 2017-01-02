@@ -7,11 +7,17 @@ import stat.matops._
 trait ObjectiveFunction[E, @specialized(Double) P] {
 
   // TODO
-  def jacobi1D[T: MatOps](b: Vec[Double], batch: Batch[T], i: Int): Double =
+  def jacobi1D[T: MatOps](b: Vec[Double],
+                          batch: Batch[T],
+                          i: Int,
+                          xmbv: Vec[Double]): Double =
     ???
 
 // TODO
-  def hessian1D[T: MatOps](p: Vec[Double], batch: Batch[T], i: Int): Double =
+  def hessian1D[T: MatOps](p: Vec[Double],
+                           batch: Batch[T],
+                           i: Int,
+                           old: Option[Double]): Double =
     ???
   def jacobi[T: MatOps](b: Vec[Double], batch: Batch[T]): Vec[Double]
   def hessian[T: MatOps](p: Vec[Double], batch: Batch[T]): Mat[Double]
@@ -47,11 +53,29 @@ object LinearRegression extends ObjectiveFunction[Double, Double] {
     (yMinusXb vv yMinusXb) * (-1)
   }
 
-  // TODO
   override def jacobi1D[T: MatOps](b: Vec[Double],
                                    batch: Batch[T],
-                                   i: Int): Double = {
-    jacobi(b, batch).raw(i)
+                                   i: Int,
+                                   XmvB: Vec[Double]): Double = {
+    val matop = implicitly[MatOps[T]]
+    import matop.vops
+    val y = batch.y
+    val X = batch.x
+    val c = matop.col(batch.x, i).asInstanceOf[Vec[Double]]
+
+    /* c vv y - XmvB */
+
+    var s = 0d
+    var j = 0
+    val n = c.length
+    while (j < n) {
+      s += c.raw(j) * (y.raw(j) - XmvB.raw(j))
+      j += 1
+    }
+    s
+    // val r = s
+    // assert(r == jacobi(b, batch).raw(i), r + " " + jacobi(b, batch).raw(i))
+    // r
   }
 
   def jacobi[T: MatOps](b: Vec[Double], batch: Batch[T]): Vec[Double] = {
@@ -61,11 +85,17 @@ object LinearRegression extends ObjectiveFunction[Double, Double] {
     X tmv yMinusXb
   }
 
-  // TODO
   override def hessian1D[T: MatOps](p: Vec[Double],
                                     batch: Batch[T],
-                                    i: Int): Double =
-    hessian(p, batch).raw(i, i)
+                                    i: Int,
+                                    old: Option[Double]): Double =
+    old.getOrElse {
+      val matop = implicitly[MatOps[T]]
+      import matop.vops
+      val c = matop.col(batch.x, i)
+      (c vv2 c) * (-1)
+
+    }
 
   def hessian[T: MatOps](p: Vec[Double], batch: Batch[T]): Mat[Double] = {
     batch.x.innerM * (-1)

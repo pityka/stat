@@ -11,8 +11,7 @@ trait Penalty[H] {
   def hessian(p: Vec[Double], penalizationMask: Vec[Double]): Mat[Double]
   def apply(b: Vec[Double], penalizationMask: Vec[Double]): Double
   def withHyperParameter(h: H): Penalty[H]
-  def proximal1D(b: Double, penalizationMask: Double, alpha: Double): Double =
-    ???
+  def proximal1D(b: Double, penalizationMask: Double, alpha: Double): Double
 }
 
 case class L2(lambda: Double) extends Penalty[Double] {
@@ -25,7 +24,10 @@ case class L2(lambda: Double) extends Penalty[Double] {
   def proximal(w: Vec[Double],
                penalizationMask: Vec[Double],
                alpha: Double): Vec[Double] =
-    w.zipMap(penalizationMask)((old, pw) => old / (1.0 + pw * lambda * alpha))
+    w.zipMap(penalizationMask)((old, pw) => proximal1D(old, pw, alpha))
+
+  def proximal1D(b: Double, penalizationMask: Double, alpha: Double): Double =
+    b / (1.0 + penalizationMask * lambda * alpha)
 
   def apply(b: Vec[Double], penalizationMask: Vec[Double]): Double =
     (b.map(x => x * x) * penalizationMask * 0.5 * lambda).sum
@@ -35,13 +37,12 @@ case class L2(lambda: Double) extends Penalty[Double] {
 
 case class L1(lambda: Double) extends Penalty[Double] {
 
-  override def proximal1D(w: Double, penalizationMask: Double, alpha: Double) =
+  def proximal1D(w: Double, penalizationMask: Double, alpha: Double) =
     math.signum(w) * math.max(0.0,
                               math.abs(w) - lambda * alpha * penalizationMask)
 
   def proximal(w: Vec[Double], penalizationMask: Vec[Double], alpha: Double) =
-    w.zipMap(penalizationMask)((old, pw) =>
-      math.signum(old) * math.max(0.0, math.abs(old) - lambda * alpha * pw))
+    w.zipMap(penalizationMask)((old, pw) => proximal1D(old, pw, alpha))
 
   def jacobi(b: Vec[Double], penalizationMask: Vec[Double]): Vec[Double] =
     throw new RuntimeException("L1 jacobi")
@@ -59,14 +60,15 @@ case class L1(lambda: Double) extends Penalty[Double] {
 case class ElasticNet(lambda1: Double, lambda2: Double)
     extends Penalty[(Double, Double)] {
 
+  def proximal1D(old: Double, pw: Double, alpha: Double): Double =
+    if (pw.isPosInfinity) 0.0
+    else
+      math.signum(old) * math.max(
+        0.0,
+        (math.abs(old) - lambda1 * alpha * pw) / (1.0 + pw * alpha * lambda2))
+
   def proximal(w: Vec[Double], penalizationMask: Vec[Double], alpha: Double) =
-    w.zipMap(penalizationMask)((old, pw) =>
-      if (pw.isPosInfinity) 0.0
-      else
-        math.signum(old) * math.max(
-          0.0,
-          (math
-            .abs(old) - lambda1 * alpha * pw) / (1.0 + pw * alpha * lambda2)))
+    w.zipMap(penalizationMask)((old, pw) => proximal1D(old, pw, alpha))
 
   def jacobi(b: Vec[Double], penalizationMask: Vec[Double]): Vec[Double] =
     throw new RuntimeException("EN Jacobi")

@@ -142,7 +142,7 @@ object Cv {
     new Train[E, H] with StrictLogging {
       import dsf.ops
       def train(idx: Vec[Int], hyper: H): Option[Eval[E]] = {
-        logger.debug("Train on {}", idx.length)
+        logger.trace("Train on {}", idx.length)
         Sgd
           .optimize(dsf.apply(data, Some(idx), batchSize, rng),
                     obj,
@@ -165,9 +165,10 @@ object Cv {
                 val obj = result.evaluateFit(batch)
                 val e = result.evaluateFit2(batch)
                 logger.debug(
-                  "Eval on {} out of {}: obj - {}, misc - {}",
+                  "Eval  on {} out of {}: h - {}, obj - {}, misc - {}",
                   math.min(idx.length, evalBatchSize),
                   idx.length,
+                  hyper,
                   obj,
                   e
                 )

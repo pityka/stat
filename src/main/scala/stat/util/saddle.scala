@@ -8,6 +8,14 @@ object saddle {
   def normalize[R: ST: ORD, C: ST: ORD](f: Frame[R, C, Double]) =
     f.mapVec(v => v / v.stdev)
 
+  def normalizeWith[R: ST: ORD, C: ST: ORD](f: Frame[R, C, Double],
+                                            s: Series[C, Double]) = {
+    Frame(f.toColSeq.map {
+      case (cx, series) =>
+        (cx, series / s.get(cx).get)
+    }: _*)
+  }
+
   def prep[R: ST: ORD](f: Frame[R, String, String],
                        missingMode: MissingMode,
                        forceCategorical: Set[String] = Set[String](),

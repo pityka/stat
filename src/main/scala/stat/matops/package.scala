@@ -15,7 +15,6 @@ package object matops {
     def numRows: Int = op.numRows(t)
     def numCols: Int = op.numCols(t)
     def raw(i: Int, j: Int): Double = op.raw(t, i, j)
-
   }
 
   implicit class PimpV[T](t: T)(implicit val op: VecOps[T]) {
