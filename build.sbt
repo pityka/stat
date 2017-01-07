@@ -9,8 +9,8 @@ version := "0.0.9"
 libraryDependencies ++= Seq(
   "io.github.pityka" %% "saddle-linalg" % "0.0.15",
   "io.github.pityka" % "hierarchical-clustering-fork" % "1.0-5",
-  "io.github.pityka" %% "nspl-saddle" % "0.0.13",
-  "io.github.pityka" %% "nspl-awt" % "0.0.13" % "test",
+  "io.github.pityka" %% "nspl-saddle" % "0.0.14",
+  "io.github.pityka" %% "nspl-awt" % "0.0.14" % "test",
   "org.scalatest" %% "scalatest" % "3.0.0" % "test",
   "biz.enef" %% "slogging" % "0.5.1",
   "com.lihaoyi" %% "upickle" % "0.4.3"
@@ -26,7 +26,7 @@ lazy val example1 = project
   .in(file("examples/regression"))
   .settings(
     libraryDependencies ++= Seq(
-      "io.github.pityka" %% "nspl-awt" % "0.0.13",
+      "io.github.pityka" %% "nspl-awt" % "0.0.14",
       "io.github.pityka" %% "fileutils" % "1.0.0",
       "com.lihaoyi" %% "upickle" % "0.4.3"
     ),

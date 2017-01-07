@@ -15,11 +15,28 @@ object CorrelationPlot {
       xLabFontSize: Option[RelFontSize] = None,
       yLabFontSize: Option[RelFontSize] = None,
       mainFontSize: RelFontSize = 1 fts,
-      colormap: Colormap = RedBlue(-1, 1, 0)) = {
+      colormap: Colormap = RedBlue(-1, 1, 0),
+      valueText: Boolean = false,
+      valueColor: Color = Color.black,
+      valueFontSize: RelFontSize = 0.4 fts,
+      tickLength: RelFontSize = 0.0 fts) = {
 
     val vecs = f.toColSeq.map {
       case (cx, series) =>
-        (cx, series.toVec.demeaned, series.toVec.stdev)
+        (cx, series.toVec)
+    }
+
+    def findNA(v: Array[Double]) = {
+      val ab = scala.collection.mutable.ArrayBuffer[Int]()
+      var i = 0
+      val n = v.size
+      while (i < n) {
+        if (v(i).isNaN) {
+          ab.append(i)
+        }
+        i += 1
+      }
+      ab.toArray
     }
 
     val ar = Array.ofDim[Double](vecs.size * vecs.size)
@@ -28,10 +45,17 @@ object CorrelationPlot {
     var j = 0
     while (i < vecs.size) {
       while (j < i) {
-        val (c1, v1, s1) = vecs(i)
-        val (c2, v2, s2) = vecs(j)
-        val cov = v1 vv v2 * (1d / (v1.length - 1))
-        val r = cov / (s1 * s2)
+        val (c1, v1) = vecs(i)
+        val (c2, v2) = vecs(j)
+        val nanidx = findNA(v1) ++ findNA(v2)
+        val v1wonan = v1.without(nanidx)
+        val v2wonan = v2.without(nanidx)
+        val v1dem = v1wonan.demeaned
+        val v2dem = v2wonan.demeaned
+        val v1s = v1dem.stdev
+        val v2s = v2dem.stdev
+        val cov = v1dem vv v2dem * (1d / (v1dem.length - 1))
+        val r = cov / (v1s * v2s)
         ar(i * vecs.size + j) = r
         ar(j * vecs.size + i) = r
         j += 1
@@ -55,7 +79,11 @@ object CorrelationPlot {
         xLabFontSize = xLabFontSize,
         yLabFontSize = yLabFontSize,
         mainFontSize = mainFontSize,
-        colormap = colormap
+        colormap = colormap,
+        valueText = valueText,
+        valueColor = valueColor,
+        valueFontSize = valueFontSize,
+        tickLength = tickLength
         // zlim = Some(-1d -> 1d)
       )
       ._1
