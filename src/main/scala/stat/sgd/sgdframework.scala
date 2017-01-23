@@ -9,6 +9,45 @@ import stat.io.upicklers._
 import upickle.default._
 import upickle.Js
 
+trait StoppingCriterion {
+  def continue[I](s: Step[I]): Boolean
+}
+
+case class AbsoluteStopTraining(eps: Double) extends StoppingCriterion {
+  def continue[I](s: Step[I]): Boolean = math.abs(s.objective) > eps
+}
+
+case class AbsoluteStopValidation(eps: Double) extends StoppingCriterion {
+  def continue[I](s: Step[I]): Boolean =
+    if (s.validationError.isEmpty) math.abs(s.objective) > eps
+    else math.abs(s.validationError.get) > eps
+}
+
+case class RelativeStopValidation(eps: Double) extends StoppingCriterion {
+  def continue[I](s: Step[I]): Boolean =
+    if (s.relValE.isEmpty) math.abs(s.relObj) > eps
+    else math.abs(s.relValE.get) > eps
+}
+
+case class RelativeStopTraining(eps: Double) extends StoppingCriterion {
+  def continue[I](s: Step[I]): Boolean = math.abs(s.relObj) > eps
+}
+
+case class StopAfterFixedIterations(i: Int) extends StoppingCriterion {
+  def continue[I](s: Step[I]): Boolean = s.count < i
+}
+
+case class Step[I](state: I,
+                   objective: Double,
+                   validationError: Option[Double],
+                   relObj: Double,
+                   relValE: Option[Double],
+                   count: Int) {
+  override def toString =
+    s"Step(st=$state,o=$objective ,v=${validationError.getOrElse("NA")},ro=$relObj,rv=${relValE
+      .getOrElse("NA")},c=$count)"
+}
+
 trait EvaluateFit[E, @specialized(Double) P] extends Prediction[P] {
   def evaluateFit[T: MatOps](batch: Batch[T]): Double
   def evaluateFit2[T: MatOps](batch: Batch[T]): E
@@ -16,7 +55,6 @@ trait EvaluateFit[E, @specialized(Double) P] extends Prediction[P] {
 
 trait ItState {
   def point: Vec[Double]
-  def convergence: Double
 }
 
 trait Updater[I <: ItState] {
@@ -27,33 +65,65 @@ trait Updater[I <: ItState] {
                       last: Option[I]): I
 }
 
+object SgdResultAggregator extends StrictLogging {
+
+  def aggregateVecs(s: Seq[Vec[Double]]) = {
+    Mat(s: _*).rows.map(x => x.mean).toVec
+  }
+
+  def make[E, P] =
+    new stat.crossvalidation.Aggregator[SgdResultWithErrors[E, P]] {
+      def aggregate(s: Seq[SgdResultWithErrors[E, P]]) = {
+        val estimates = aggregateVecs(s.map(_.result.estimatesV))
+        logger.debug("Aggregating {} sgd results. Non zero: {}",
+                     s.size,
+                     estimates.countif(_ != 0.0))
+        SgdResultWithErrors(SgdResult(estimates,
+                                      s.head.result.model,
+                                      s.head.result.kernel,
+                                      s.head.result.normalizer),
+                            s.map(_.trainingError).toVec.mean,
+                            None)
+      }
+    }
+}
+
 case class SgdResult[E, P](
     estimatesV: Vec[Double],
     model: ObjectiveFunction[E, P],
-    scaledEstimatesV: Vec[Double]
+    kernel: FeatureMap,
+    normalizer: Vec[Double]
 ) extends Prediction[P]
     with EvaluateFit[E, P] {
+  def scaledEstimatesV = estimatesV
   def predict(v: Vec[Double]) = predict(Mat(v).T).raw(0)
-  def predict(m: Mat[Double]) = model.predictMat(scaledEstimatesV, m)
-  def predict[T: MatOps](m: T) = model.predict(scaledEstimatesV, m)
-  def evaluateFit[T: MatOps](b: Batch[T]): Double = model.apply(estimatesV, b)
-  def evaluateFit2[T: MatOps](b: Batch[T]): E = model.eval(estimatesV, b)
+  def predict(m: Mat[Double]) =
+    model.predictMat(
+      estimatesV,
+      kernel.applyMat(m.mDiagFromRight(normalizer))(DenseMatOps))
+
+  // sparse matrix does no normalization at the moment
+  def predict[T: MatOps](m: T) =
+    model.predict(estimatesV, kernel.applyMat(m))
+
+  def evaluateFit[T: MatOps](b: Batch[T]): Double =
+    model.apply(estimatesV, Batch(b, kernel))
+  def evaluateFit2[T: MatOps](b: Batch[T]): E =
+    model.eval(estimatesV, Batch(b, kernel))
 }
 
 case class NamedSgdResult[E, P](
     raw: SgdResult[E, P],
     names: Index[String]
 ) extends NamedPrediction[P]
-    with Prediction[P]
-    with EvaluateFit[E, P] {
+    with Prediction[P] {
   def estimatesV = raw.estimatesV
-  def scaledEstimatesV = raw.scaledEstimatesV
+  def scaledEstimatesV = estimatesV
+
   def predict(v: Vec[Double]) = raw.predict(v)
   def predict(m: Mat[Double]) = raw.predict(m)
   def predict[T: MatOps](m: T) = raw.predict(m)
 
-  def evaluateFit[T: MatOps](b: Batch[T]): Double = raw.evaluateFit(b)
-  def evaluateFit2[T: MatOps](b: Batch[T]): E = raw.evaluateFit2(b)
 }
 
 object NamedSgdResult {
@@ -67,39 +137,48 @@ object NamedSgdResult {
       .read(upickle.json.read(s))
 }
 
+case class SgdResultWithErrors[E, P](result: SgdResult[E, P],
+                                     trainingError: Double,
+                                     validationError: Option[(Double, E)])
+
 object Sgd extends StrictLogging {
 
   def optimize[RX: ST: ORD, I <: ItState, E, P](
       f: Frame[RX, String, Double],
       yKey: String,
       obj: ObjectiveFunction[E, P],
-      pen: Penalty[_],
-      upd: Updater[I],
+      pen: Penalty[_] = L2(0d),
+      upd: Updater[I] = CoordinateDescentUpdater(false),
       addIntercept: Boolean = true,
       maxIterations: Int = 100000,
-      minEpochs: Double = 2d,
+      minEpochs: Double = 1d,
       convergedAverage: Int = 50,
-      epsilon: Double = 1E-6,
-      rng: scala.util.Random = new scala.util.Random(42)
+      stop: StoppingCriterion = RelativeStopTraining(1E-6),
+      rng: scala.util.Random = new scala.util.Random(42),
+      kernel: FeatureMap = IdentityFeatureMap,
+      normalize: Boolean = true
   ): Option[NamedSgdResult[E, P]] = {
     val (x, y, std) =
       createDesignMatrix(f, yKey, addIntercept)
 
-    val matrixData = MatrixData(trainingX = x,
-                                trainingY = y,
-                                penalizationMask =
-                                  Vec(0d +: vec.ones(x.numCols - 1).toSeq: _*))
+    val matrixData = MatrixData(
+      trainingX = x,
+      trainingY = y,
+      penalizationMask = Vec(0d +: std.toSeq.drop(1).map(x => 1d): _*))
 
     optimize(matrixData,
              obj,
              pen,
              upd,
+             kernel,
              maxIterations,
              minEpochs,
              convergedAverage,
-             epsilon,
+             stop,
              f.numRows,
-             rng).map { result =>
+             rng,
+             normalize,
+             None).map { result =>
       val idx =
         obj
           .adaptParameterNames(
@@ -107,7 +186,7 @@ object Sgd extends StrictLogging {
               ("intercept" +: f.colIx.toSeq.filter(_ != yKey))
             else f.colIx.toSeq.filter(_ != yKey))
           .toIndex
-      NamedSgdResult(result, idx)
+      NamedSgdResult(result.result, idx)
     }
   }
 
@@ -116,26 +195,41 @@ object Sgd extends StrictLogging {
       obj: ObjectiveFunction[E, P],
       pen: Penalty[_],
       upd: Updater[I],
+      kernel: FeatureMap,
       maxIterations: Int,
       minEpochs: Double,
       convergedAverage: Int,
-      epsilon: Double,
+      stop: StoppingCriterion,
       batchSize: Int,
-      rng: scala.util.Random
-  )(implicit dsf: DataSourceFactory[D, M]): Option[SgdResult[E, P]] = {
-    val (n, d) = dsf.normalize(data)
+      rng: scala.util.Random,
+      normalize: Boolean,
+      validationBatch: Option[Batch[M]]
+  )(implicit dsf: DataSourceFactory[D, M]): Option[SgdResultWithErrors[E, P]] = {
     import dsf.ops
-    optimize(dsf.apply(n, None, batchSize, rng),
+
+    val (normed, normalizer) = dsf.normalize(data)
+
+    val d1 =
+      if (normalize) dsf.apply(normed, None, batchSize, rng)
+      else dsf.apply(data, None, batchSize, rng)
+
+    val n1 = if (normalize) normalizer else vec.ones(normalizer.length)
+
+    optimize(d1,
              obj,
              pen,
              upd,
+             kernel,
              maxIterations,
              minEpochs,
              convergedAverage,
-             epsilon).map { result =>
-      SgdResult(result.estimatesV,
-                result.model,
-                result.model.scaleBackCoefficients(result.estimatesV, d))
+             stop,
+             validationBatch,
+             None).map { result =>
+      SgdResultWithErrors(
+        SgdResult(result.result.estimatesV, result.result.model, kernel, n1),
+        result.trainingError,
+        result.validationError)
     }
   }
 
@@ -144,64 +238,214 @@ object Sgd extends StrictLogging {
       obj: ObjectiveFunction[E, P],
       pen: Penalty[_],
       updater: Updater[I],
+      kernel: FeatureMap,
       maxIterations: Int,
       minEpochs: Double,
       convergedAverage: Int,
-      epsilon: Double
-  ): Option[SgdResult[E, P]] = {
+      stop: StoppingCriterion,
+      validationBatch: Option[Batch[M]],
+      start: Option[Vec[Double]]
+  ): Option[SgdResultWithErrors[E, P]] = {
 
     val data: Iterator[Batch[M]] = dataSource.training.flatten
-    val start = obj.start(dataSource.numCols)
 
-    def iteration(start: Vec[Double],
-                  max: Int,
-                  min: Int,
-                  tail: Int,
-                  epsilon: Double): Option[Vec[Double]] = {
-      val t = from(start).zipWithIndex
-        .map(x => {
-          if (x._1.convergence.isNaN) throw new RuntimeException("NaN?"); x
-        })
-        .take(max)
-        .drop(min)
-        .filter(_._1.convergence < epsilon)
-        .take(tail)
-        .toVector
+    val firstBatch = Batch(data.next, kernel)
+
+    val validationBatchWithFeatureMap =
+      validationBatch.map(b => Batch(b, kernel))
+
+    logger.debug(
+      "Call to optimize. obj: {}, pen: {}, updater: {}, maxIter: {}, minEpochs: {}, tail: {}, stop: {}, validation: {}, start: {}",
+      obj,
+      pen,
+      updater,
+      maxIterations,
+      minEpochs,
+      convergedAverage,
+      stop,
+      validationBatch.isDefined,
+      start.isDefined)
+
+    def iteration(
+        max: Int,
+        min: Int,
+        tail: Int): Option[(Vec[Double], Double, Option[(Double, E)])] = {
+
+      // var list: List[Vec[Double]] = Nil
+
+      val t = {
+        val (pre, suf) = from.takeWhile { x =>
+          val nan = x.objective.isNaN
+          if (nan) {
+            logger.warn("NaN, stopping iteration. Last state: {}", x)
+          }
+          !nan
+        }.drop(min).take(max).span(x => stop.continue(x))
+
+        val tsuf = suf.take(tail).toVector
+        val tpre = pre.toVector
+
+        val lastidx = (tpre ++ tsuf).lastOption.map(_.count)
+        if (lastidx.isEmpty) {
+          logger.warn("Did not converge.")
+        } else {
+          logger.debug("Converged {}", lastidx.get)
+        }
+
+        if (validationBatch.isEmpty) tpre.takeRight(tail - tsuf.size) ++ tsuf
+        else
+          (tpre ++ tsuf).sortBy(x => x.validationError.get).takeRight(tail)
+      }
+
+      // {
+      //
+      //   val batch = data.next
+      //
+      //   import org.nspl._
+      //   import org.nspl.awtrenderer._
+      //   import org.nspl.saddle._
+      //   import org.nspl.data._
+      //
+      //   def fun(x: Double, y: Double) =
+      //     obj.apply(Vec(x, y), batch) + pen
+      //       .apply(Vec(x, y), batch.penalizationMask) * (-1)
+      //
+      //   def fun2(v: Vec[Double]) =
+      //     obj.apply(v, batch) + pen.apply(v, batch.penalizationMask) * (-1)
+      //
+      //   val ct = linesegments(
+      //     contour(
+      //       list.map(_.get(0)).min - 0.1,
+      //       0.1 + list.map(_.get(0)).max,
+      //       list.map(_.get(1)).min - 0.1,
+      //       0.1 + list.map(_.get(1)).max,
+      //       50,
+      //       100
+      //     )((x, y) => fun(x, y)))
+      //
+      //   val contourplot = xyplot(
+      //     ct,
+      //     list
+      //       .sliding(2)
+      //       .map(x => (x(0).raw(0), x(0).raw(1), x(1).raw(0), x(1).raw(1)))
+      //       .toSeq -> lineSegment(),
+      //     list.zipWithIndex
+      //       .map(x => (x._1.raw(0), x._1.raw(1), x._2.toDouble)) -> point(
+      //       size = 2,
+      //       color = HeatMapColors(0, list.size))
+      //   )(main = updater.toString)
+      //
+      //   scala.util.Try {
+      //     val objplot = xyplot(list.reverse.zipWithIndex.map(x =>
+      //       x._2.toDouble -> fun2(x._1)))(axisMargin = 0.05)
+      //
+      //     show(group(contourplot, objplot, TableLayout(2)))
+      //   }
+      // }
 
       if (t.isEmpty) {
-        logger.warn("Did not converge after {} iterations", max)
         None
       } else {
-        logger.debug("Converged after {} iterations", t.last._2 + 1)
 
-        Some(t.map(_._1.point).reduce(_ + _) / t.size)
+        val averagedPoint = t.map(_.state.point).reduce(_ + _) / t.size
+        logger.trace("active in averaged point: {} (n={})",
+                     averagedPoint.countif(_ != 0d),
+                     t.size)
+
+        val trainingError = t.map(x => x.objective).reduce(_ + _) / t.size
+
+        val validationError =
+          validationBatchWithFeatureMap.map(b =>
+            obj.apply(averagedPoint, b) / b.y.length)
+
+        val validationEval = validationError.map(x =>
+          x -> obj.eval(averagedPoint, validationBatchWithFeatureMap.get))
+
+        validationEval.foreach(
+          validationEval =>
+            logger.debug(
+              "Eval on {} samples. Validation - obj: {} / misc: {}. Training obj: {}",
+              validationBatchWithFeatureMap.get.y.length,
+              validationEval._1,
+              validationEval._2,
+              trainingError
+          ))
+
+        Some((averagedPoint, trainingError, validationEval))
       }
 
     }
 
-    def from(start: Vec[Double]): Stream[I] = {
+    def from: Stream[Step[I]] = {
 
-      def loop(start: I): Stream[I] =
-        start #:: loop({
-          val n = updater.next(start.point, data.next, obj, pen, Some(start))
+      def loop(previousStep: Step[I]): Stream[Step[I]] =
+        previousStep #:: loop({
+          val batch =
+            if (firstBatch.full) firstBatch
+            else Batch(data.next, kernel)
 
-          logger.trace(n.toString)
+          val n =
+            updater.next(previousStep.state.point,
+                         batch,
+                         obj,
+                         pen,
+                         Some(previousStep.state))
 
-          n
+          val currentValidationError =
+            validationBatchWithFeatureMap.map(b => obj.apply(n.point, b))
+
+          val currentObjective = (obj.apply(n.point, batch) - pen
+              .apply(n.point, batch.penalizationMask))
+
+          val relObj = (currentObjective - previousStep.objective) / currentObjective
+
+          val relValE = currentValidationError.map { c =>
+            (c - previousStep.validationError.get) / c
+          }
+
+          val next = Step(state = n,
+                          objective = currentObjective,
+                          validationError = currentValidationError,
+                          relObj = relObj,
+                          relValE = relValE,
+                          count = previousStep.count + 1)
+
+          logger.trace(
+            "{}. Active: {}",
+            next,
+            n.point.countif(_ != 0d)
+          )
+
+          next
+
         })
 
-      logger.trace((start, data.next).toString)
-      val f1 = updater.next(start, data.next, obj, pen, None)
-      logger.trace(f1.toString)
-      loop(f1)
+      val batch = if (firstBatch.full) firstBatch else Batch(data.next, kernel)
+      val start1 = start.getOrElse(obj.start(batch.x.numCols))
+
+      val firstStep = updater.next(start1, batch, obj, pen, None)
+
+      val currentValidationError =
+        validationBatchWithFeatureMap.map(b => obj.apply(firstStep.point, b))
+
+      val currentObjective = (obj.apply(firstStep.point, batch) - pen
+          .apply(firstStep.point, batch.penalizationMask))
+
+      loop(
+        Step(firstStep,
+             currentObjective,
+             currentValidationError,
+             1.0,
+             Some(1.0),
+             1)
+      )
     }
 
-    iteration(start,
-              maxIterations,
+    iteration(maxIterations,
               (minEpochs * dataSource.batchPerEpoch).toInt + 1,
-              convergedAverage,
-              epsilon).map { r =>
-      SgdResult(r, obj, r)
+              convergedAverage).map {
+      case (point, tE, vE) =>
+        SgdResultWithErrors(SgdResult(point, obj, kernel, Vec(0d)), tE, vE)
     }
 
   }

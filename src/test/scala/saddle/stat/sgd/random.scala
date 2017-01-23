@@ -26,17 +26,17 @@ class LMOverfitRandomSuite extends FunSuite {
       FistaUpdater,
       Split(0.9, rng),
       stat.crossvalidation.KFold(5, rng, 1),
-      stat.crossvalidation.RandomSearch(() => rng.nextDouble),
-      hMin = -6d,
-      hMax = 15d,
-      hN = 10,
+      stat.crossvalidation.HyperParameterSearch.GridSearch1D(-6d, 15d, 10),
+      IdentityFeatureMapFactory,
+      bootstrapAggregate = None,
       maxIterations = 3000,
       minEpochs = 1,
       convergedAverage = 2,
       epsilon = 1E-2,
       batchSize = design.numRows,
       maxEvalSize = design.numRows,
-      rng = rng
+      rng = rng,
+      normalize = false
     )
     println(fitFista)
 
@@ -66,17 +66,17 @@ class LMRandomSuite extends FunSuite {
       FistaUpdater,
       Split(0.9, rng),
       stat.crossvalidation.KFold(5, rng, 1),
-      stat.crossvalidation.RandomSearch(() => rng.nextDouble),
-      hMin = -6d,
-      hMax = 15d,
-      hN = 10,
+      stat.crossvalidation.HyperParameterSearch.GridSearch1D(-6d, 15d, 10),
+      IdentityFeatureMapFactory,
+      bootstrapAggregate = None,
       maxIterations = 3000,
       minEpochs = 1,
       convergedAverage = 2,
       epsilon = 1E-2,
       batchSize = design.numRows,
       maxEvalSize = design.numRows,
-      rng = rng
+      rng = rng,
+      normalize = false
     )
     println(fitFista)
 
@@ -104,17 +104,18 @@ class LRRandomSuite extends FunSuite {
       FistaUpdater,
       Split(0.8, rng),
       stat.crossvalidation.KFold(5, rng, 1),
-      stat.crossvalidation.RandomSearch2D(() => rng.nextDouble),
-      hMin = -2d,
-      hMax = 15d,
-      hN = 20,
+      stat.crossvalidation.HyperParameterSearch
+        .RandomSearch2D(-6d, 15d, -6d, 15d, 10)(() => rng.nextDouble),
+      IdentityFeatureMapFactory,
+      bootstrapAggregate = None,
       maxIterations = 5000,
       minEpochs = 1,
       convergedAverage = 2,
       epsilon = 1E-3,
       batchSize = design.numRows,
       maxEvalSize = design.numRows,
-      rng
+      rng,
+      normalize = false
     )
     println(fitFista)
 
@@ -142,17 +143,18 @@ class MNLRRandomSuite extends FunSuite {
       FistaUpdater,
       Split(0.8, rng),
       stat.crossvalidation.KFold(5, rng, 1),
-      stat.crossvalidation.RandomSearch2D(() => rng.nextDouble),
-      hMin = -2d,
-      hMax = 15d,
-      hN = 20,
+      stat.crossvalidation.HyperParameterSearch
+        .RandomSearch2D(-6d, 15d, -6d, 15d, 10)(() => rng.nextDouble),
+      IdentityFeatureMapFactory,
+      bootstrapAggregate = None,
       maxIterations = 5000,
       minEpochs = 1,
       convergedAverage = 2,
       epsilon = 1E-3,
       batchSize = design.numRows,
       maxEvalSize = design.numRows,
-      rng
+      rng,
+      normalize = false
     )
     println(fitFista)
     assert(fitFista._1.misc.accuracy > 0.75)

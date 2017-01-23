@@ -6,10 +6,23 @@ import slogging.StrictLogging
 import stat.sparse._
 import stat._
 import stat.matops._
-case class Batch[M](x: M, y: Vec[Double], penalizationMask: Vec[Double])
+import stat.crossvalidation._
+
+case class Batch[M](x: M,
+                    y: Vec[Double],
+                    penalizationMask: Vec[Double],
+                    full: Boolean)
+
+object Batch {
+  def apply[M: MatOps](b: Batch[M], k: FeatureMap): Batch[M] =
+    Batch(k.applyMat(b.x),
+          b.y,
+          k.applyPenalizationMask(b.penalizationMask),
+          b.full)
+}
+
 case class DataSource[M](
     training: Iterator[Iterator[Batch[M]]],
-    numCols: Int,
     allidx: Vec[Int],
     batchPerEpoch: Int
 )
@@ -61,9 +74,9 @@ trait DataSourceFactories extends StrictLogging {
                 rng: scala.util.Random): DataSource[Mat[Double]] = {
         import t._
 
-        logger.trace("Creating new data source. Size {} , {}",
-                     allowedIdx2.map(_.length),
-                     allowedIdx2.map(_.toSeq))
+        // logger.trace("Creating new data source. Size {} , {}",
+        //              allowedIdx2.map(_.length),
+        //              allowedIdx2.map(_.toSeq))
 
         val allowedIdx = allowedIdx2.getOrElse(0 until trainingX.numRows toVec)
 
@@ -72,7 +85,8 @@ trait DataSourceFactories extends StrictLogging {
             Some(
               Batch(trainingX.takeRows(allowedIdx),
                     trainingY(allowedIdx),
-                    penalizationMask))
+                    penalizationMask,
+                    true))
           else None
 
         val iter = new Iterator[Iterator[Batch[Mat[Double]]]] {
@@ -100,7 +114,8 @@ trait DataSourceFactories extends StrictLogging {
 
                   Batch(trainingX.takeRows(idx2),
                         trainingY(idx2),
-                        penalizationMask)
+                        penalizationMask,
+                        false)
                 }
 
               }
@@ -108,7 +123,6 @@ trait DataSourceFactories extends StrictLogging {
           }
         }
         DataSource(iter,
-                   trainingX.numCols,
                    (0 until trainingX.numRows).toVec,
                    allowedIdx.length / batchSize + 1)
       }
@@ -167,14 +181,14 @@ trait DataSourceFactories extends StrictLogging {
 
                 Batch(idx2.map(i => trainingX(i)).toSeq.toIndexedSeq,
                       trainingY(idx2),
-                      penalizationMask)
+                      penalizationMask,
+                      batchSize >= allowedIdx.length)
               }
 
             }
           }
         }
         DataSource(iter,
-                   cidx.length,
                    sparse.rowIx(trainingX),
                    allowedIdx.length / batchSize + 1)
       }

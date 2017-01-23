@@ -7,15 +7,13 @@ import stat.matops._
 import slogging.StrictLogging
 
 case class FistaItState(point: Vec[Double],
-                        convergence: Double,
                         t: Double,
                         x: Vec[Double],
                         stepSize: Double,
-                        obj: Double,
                         minStepSize: Double)
     extends ItState {
   override def toString =
-    s"FistaItState(conv=$convergence,stepSize=$stepSize,obj=$obj)"
+    s"FistaItState(stepSize=$stepSize)"
 }
 
 /**
@@ -46,8 +44,10 @@ object FistaUpdater extends Updater[FistaItState] with StrictLogging {
         stepSize
       )
 
-    def objective(w: Vec[Double]): Double =
-      objectiveUnpenalized(w) + penaltyFunction(w)
+    def objective(w: Vec[Double]): (Double, Double) = {
+      val x = objectiveUnpenalized(w)
+      (x * (-1), x + penaltyFunction(w))
+    }
 
     def objectiveUnpenalized(w: Vec[Double]): Double = -1 * obj.apply(w, batch)
 
@@ -57,7 +57,6 @@ object FistaUpdater extends Updater[FistaItState] with StrictLogging {
 
     val t = last.map(_.t).getOrElse(1.0)
     val x = last.map(_.x).getOrElse(y)
-    val objCurrent = last.map(_.obj).getOrElse(objective(y))
 
     /* 1 / Lipschitz constant */
     val minStepSize = last.map(_.minStepSize).getOrElse {
@@ -67,48 +66,41 @@ object FistaUpdater extends Updater[FistaItState] with StrictLogging {
 
     val stepSize = last.map(_.stepSize).getOrElse(minStepSize * 1E4)
 
-    val xnext = step(stepSize, y, gradient(y))
+    val gradY = gradient(y)
 
-    // println(gradient(y).toSeq.sortBy(math.abs))
+    def trystep(stepSize: Double): (Double, Vec[Double], Vec[Double], Double) = {
+      val xnext = step(stepSize, y, gradY)
 
-    val tplus1 = (1 + math.sqrt(1 + 4 * t * t)) * 0.5
+      val tplus1 = (1 + math.sqrt(1 + 4 * t * t)) * 0.5
 
-    val ynext = xnext + (xnext - x) * ((t - 1.0) / tplus1)
+      val ynext = xnext + (xnext - x) * ((t - 1.0) / tplus1)
 
-    val objNext = objective(ynext)
+      val (_, objNext) = objective(ynext)
 
-    // println(
-    // "Fista is better" + objNextIsta + " vs " + objNext + " vs " + objCurrent)
+      val quadApprox = quad(xnext, y, stepSize)
 
-    val quadApprox = objCurrent //quad(xnext, y, stepSize)
+      if (quadApprox < objNext && stepSize > 2 * minStepSize) {
+        logger.trace(
+          "Halfing step size Q={} < F={}, current step: {}, min step size reached: {}",
+          quadApprox,
+          objNext,
+          stepSize,
+          stepSize < 2 * minStepSize)
+        trystep(math.max(stepSize * 0.5, minStepSize))
+      } else {
+        logger.trace(
+          "Keeping step size Q={} >= F={}, min step size reached: {}",
+          quadApprox,
+          objNext,
+          stepSize < 2 * minStepSize)
+        (tplus1, xnext, ynext, stepSize)
+      }
 
-    val relError = (objNext - objCurrent) / objCurrent
-
-    if (quadApprox < objNext && stepSize != minStepSize) {
-      logger.trace("Halfing step size Q={} < F={}, min step size reached: {}",
-                   quadApprox,
-                   objNext,
-                   stepSize == minStepSize)
-      FistaItState(y,
-                   math.abs(relError),
-                   t,
-                   x,
-                   math.max(stepSize * 0.5, minStepSize),
-                   objCurrent,
-                   minStepSize)
-    } else {
-      logger.trace("Keeping step size Q={} >= F={}, min step size reached: {}",
-                   quadApprox,
-                   objNext,
-                   stepSize == minStepSize)
-      FistaItState(ynext,
-                   math.abs(relError),
-                   tplus1,
-                   xnext,
-                   stepSize,
-                   objNext,
-                   minStepSize)
     }
 
+    val (tplus1, xnext, ynext, step2) = trystep(stepSize)
+
+    FistaItState(ynext, tplus1, xnext, step2, minStepSize)
   }
+
 }

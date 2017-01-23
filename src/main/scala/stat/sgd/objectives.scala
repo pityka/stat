@@ -6,24 +6,23 @@ import stat.matops._
 
 trait ObjectiveFunction[E, @specialized(Double) P] {
 
-  // TODO
   def jacobi1D[T: MatOps](b: Vec[Double],
                           batch: Batch[T],
                           i: Int,
-                          xmbv: Vec[Double]): Double =
-    ???
+                          xmbv: Vec[Double]): Double
 
-// TODO
   def hessian1D[T: MatOps](p: Vec[Double],
                            batch: Batch[T],
                            i: Int,
-                           old: Option[Double]): Double =
-    ???
+                           old: Option[Double],
+                           xmvb: Vec[Double]): Double
   def jacobi[T: MatOps](b: Vec[Double], batch: Batch[T]): Vec[Double]
   def hessian[T: MatOps](p: Vec[Double], batch: Batch[T]): Mat[Double]
   def minusHessianLargestEigenValue[T: MatOps](p: Vec[Double],
                                                batch: Batch[T]): Double
-  def apply[T: MatOps](b: Vec[Double], batch: Batch[T]): Double
+  def apply[T: MatOps](b: Vec[Double],
+                       batch: Batch[T],
+                       work: Option[Array[Double]] = None): Double
   def start(cols: Int): Vec[Double]
 
   def predictMat(estimates: Vec[Double], data: Mat[Double]): Vec[P]
@@ -48,34 +47,49 @@ object LinearRegression extends ObjectiveFunction[Double, Double] {
 
   def start(cols: Int): Vec[Double] = vec.zeros(cols)
 
-  def apply[T: MatOps](b: Vec[Double], batch: Batch[T]): Double = {
-    val yMinusXb = batch.y - (batch.x mv b)
-    (yMinusXb vv yMinusXb) * (-1)
+  def apply[T: MatOps](b: Vec[Double],
+                       batch: Batch[T],
+                       work: Option[Array[Double]]): Double = {
+    val xmvb =
+      if (work.isEmpty) (batch.x mv b)
+      else
+        (batch.x.mv(b, work.get))
+
+    var s = 0d
+    var j = 0
+    val n = batch.y.length
+    val y = batch.y
+    while (j < n) {
+      val t = (y.raw(j) - xmvb.raw(j))
+      s += t * t
+      j += 1
+    }
+
+    s * (-1d)
   }
 
-  override def jacobi1D[T: MatOps](b: Vec[Double],
-                                   batch: Batch[T],
-                                   i: Int,
-                                   XmvB: Vec[Double]): Double = {
+  def jacobi1D[T: MatOps](b: Vec[Double],
+                          batch: Batch[T],
+                          i: Int,
+                          XmvB: Vec[Double]): Double = {
     val matop = implicitly[MatOps[T]]
     import matop.vops
     val y = batch.y
     val X = batch.x
-    val c = matop.col(batch.x, i).asInstanceOf[Vec[Double]]
 
-    /* c vv y - XmvB */
+    /*  matop.col(batch.x, i) vv y - XmvB */
 
     var s = 0d
     var j = 0
-    val n = c.length
+    val n = y.length
     while (j < n) {
-      s += c.raw(j) * (y.raw(j) - XmvB.raw(j))
+      s += matop.raw(batch.x, j, i) * (y.raw(j) - XmvB.raw(j))
       j += 1
     }
     s
-    // val r = s
+    val r = s
     // assert(r == jacobi(b, batch).raw(i), r + " " + jacobi(b, batch).raw(i))
-    // r
+    r
   }
 
   def jacobi[T: MatOps](b: Vec[Double], batch: Batch[T]): Vec[Double] = {
@@ -85,17 +99,27 @@ object LinearRegression extends ObjectiveFunction[Double, Double] {
     X tmv yMinusXb
   }
 
-  override def hessian1D[T: MatOps](p: Vec[Double],
-                                    batch: Batch[T],
-                                    i: Int,
-                                    old: Option[Double]): Double =
-    old.getOrElse {
+  def hessian1D[T: MatOps](p: Vec[Double],
+                           batch: Batch[T],
+                           i: Int,
+                           old: Option[Double],
+                           xmvb: Vec[Double]): Double = {
+    if (old.isDefined && batch.full) old.get
+    else {
       val matop = implicitly[MatOps[T]]
       import matop.vops
-      val c = matop.col(batch.x, i)
-      (c vv2 c) * (-1)
-
+      // val c = matop.col(batch.x, i)
+      // (c vv2 c) * (-1)
+      var s = 0d
+      var j = 0
+      val n = batch.y.length
+      while (j < n) {
+        s += matop.raw(batch.x, j, i) * matop.raw(batch.x, j, i)
+        j += 1
+      }
+      s * (-1)
     }
+  }
 
   def hessian[T: MatOps](p: Vec[Double], batch: Batch[T]): Mat[Double] = {
     batch.x.innerM * (-1)
@@ -110,6 +134,7 @@ object LinearRegression extends ObjectiveFunction[Double, Double] {
     estimates dot data
   def predictMat(estimates: Vec[Double], data: Mat[Double]): Vec[Double] =
     (data mv estimates)
+
   def predict[T: MatOps](estimates: Vec[Double], data: T): Vec[Double] =
     (data mv estimates)
 
@@ -136,7 +161,9 @@ object LogisticRegression
 
   def start(cols: Int): Vec[Double] = vec.zeros(cols)
 
-  def apply[T: MatOps](b: Vec[Double], batch: Batch[T]): Double = {
+  def apply[T: MatOps](b: Vec[Double],
+                       batch: Batch[T],
+                       work: Option[Array[Double]]): Double = {
     val Xb = (batch.x mv b)
     val yXb = batch.y * Xb
     val z = Xb.map(x => math.log(1d + math.exp(x)))
@@ -145,13 +172,63 @@ object LogisticRegression
 
   def getPi[T: MatOps](b: Vec[Double], batch: Batch[T]): Vec[Double] = {
     val Xb = (batch.x mv b)
-    val eXb = Xb.map(math.exp)
-    eXb.map(e => e / (1d + e))
+    Xb.map { x =>
+      val e = math.exp(x)
+      e / (1 + e)
+    }
+  }
+
+  def jacobi1D[T: MatOps](b: Vec[Double],
+                          batch: Batch[T],
+                          i: Int,
+                          XmvB: Vec[Double]): Double = {
+    val matop = implicitly[MatOps[T]]
+    import matop.vops
+    val y = batch.y
+    val X = batch.x
+    val c = matop.col(batch.x, i)
+
+    val pi = XmvB.map { x =>
+      val e = math.exp(x)
+      e / (1 + e)
+    }
+
+    /* c vv y - XmvB */
+
+    // var s = 0d
+    // var j = 0
+    // val n = c.length
+    // while (j < n) {
+    //   s += c.raw(j) * (y.raw(j) - pi.raw(j))
+    //   j += 1
+    // }
+    // s
+    // val r = s
+    val r = vops.vv(c, y - pi)
+    assert(r == jacobi(b, batch).raw(i), r + " " + jacobi(b, batch).raw(i))
+    r
   }
 
   def jacobi[T: MatOps](b: Vec[Double], batch: Batch[T]): Vec[Double] = {
     val pi: Vec[Double] = getPi(b, batch)
     (batch.x tmv (batch.y - pi).col(0))
+  }
+
+  def hessian1D[T: MatOps](p: Vec[Double],
+                           batch: Batch[T],
+                           i: Int,
+                           old: Option[Double],
+                           xmvb: Vec[Double]): Double = {
+    val matop = implicitly[MatOps[T]]
+    import matop.vops
+    val c = matop.col(batch.x, i)
+    val pi: Vec[Double] = xmvb.map { x =>
+      val e = math.exp(x)
+      e / (1 + e)
+    }
+    val w: Vec[Double] = pi * (pi * (-1) + 1.0)
+    ((c * (w * (-1))) vv2 c)
+
   }
 
   def hessian[T: MatOps](b: Vec[Double], batch: Batch[T]): Mat[Double] = {

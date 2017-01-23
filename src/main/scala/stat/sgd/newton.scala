@@ -4,7 +4,7 @@ import org.saddle._
 import org.saddle.linalg._
 import stat.matops._
 
-case class Iteration(point: Vec[Double], convergence: Double) extends ItState
+case class Iteration(point: Vec[Double]) extends ItState
 
 object NewtonUpdater extends Updater[Iteration] {
   def next[M: MatOps](b: Vec[Double],
@@ -24,12 +24,12 @@ object NewtonUpdater extends Updater[Iteration] {
 
     val next = b - (hinv mm j).col(0)
 
-    val jacobisum =
-      (obj.jacobi(next, batch) - pen.jacobi(next, penalizationMask))
-        .map(math.abs)
-        .sum
+    // val jacobisum =
+    //   (obj.jacobi(next, batch) - pen.jacobi(next, penalizationMask))
+    //     .map(math.abs)
+    //     .sum
 
-    Iteration(next, jacobisum)
+    Iteration(next)
 
   }
 }

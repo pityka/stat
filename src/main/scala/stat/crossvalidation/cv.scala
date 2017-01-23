@@ -5,50 +5,43 @@ import scala.util.Random
 
 case class EvalR[E](obj: Double, misc: E)
 
-trait Train2[EvalRes] {
-  def train(idx: Vec[Int]): Option[Eval[EvalRes]]
+trait Train2[EvalRes, P, K] {
+  def train(idx: Vec[Int]): Option[(Eval[EvalRes], HyperParameter[P, K])]
 }
 
-trait Train[EvalRes, Hyper] {
-  def train(idx: Vec[Int], hyper: Hyper): Option[Eval[EvalRes]]
-}
-
-trait HyperParameterSearch[H] {
-  def apply[E](
-      idx: Vec[Int],
-      t: Train[E, H],
-      split: CVSplit,
-      min: Double,
-      max: Double,
-      n: Int
-  ): Option[H]
+trait Train[EvalRes, PHyper, Res, KHyper] {
+  def train(idx: Vec[Int],
+            hyper: HyperParameter[PHyper, KHyper],
+            evalIdx: Option[Vec[Int]],
+            start: Option[Vec[Double]]): Option[Res]
+  def eval(r: Res): Eval[EvalRes]
 }
 
 object Train {
-  def nestedSearch[E, H](t: Train[E, H],
-                         split: CVSplit,
-                         min: Double,
-                         max: Double,
-                         n: Int,
-                         search: HyperParameterSearch[H]) = new Train2[E] {
-    def train(idx: Vec[Int]): Option[Eval[E]] = {
-      search(
-        idx,
-        t,
-        split,
-        min,
-        max,
-        n
-      ).flatMap { opt =>
-        t.train(idx, opt)
+  def nestedSearch[E, H, R, K](t: Train[E, H, R, K],
+                               split: CVSplit,
+                               search: HyperParameterSearch[H, K]) =
+    new Train2[E, H, K] {
+      def train(idx: Vec[Int]): Option[(Eval[E], HyperParameter[H, K])] = {
+        search(
+          idx,
+          t,
+          split
+        ).flatMap {
+          case (opt, start) =>
+            t.train(idx, opt, None, start).map(r => (t.eval(r), opt))
+        }
       }
     }
-  }
 }
 
 trait Eval[EvalRes] {
   def eval(idx: Vec[Int]): EvalR[EvalRes]
   def estimatesV: Vec[Double]
+}
+
+trait Aggregator[R] {
+  def aggregate(s: Seq[R]): R
 }
 
 sealed trait CVSplit {
@@ -104,3 +97,5 @@ case class KFoldStratified(folds: Int,
     }
   }
 }
+
+case class HyperParameter[H, KH](penalty: H, kernel: KH)

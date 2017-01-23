@@ -89,4 +89,34 @@ object RadialBasisFunctions {
     (centersF, avgDist)
   }
 
+  def centers(data: Mat[Double],
+              clusters: Int,
+              iter: Int,
+              restarts: Int,
+              rng: scala.util.Random): (Seq[Vec[Double]], Vec[Double]) = {
+
+    val centers = stat.kmeans
+      .random(stat.kmeans.matToSparse(data), clusters, restarts, iter, rng)
+      .means
+
+    val avgDist = centers.map { c =>
+      math.pow(centers.map(c2 => euclid(c, c2)).filterNot(_ == 0d).min, 2d)
+    }.toVec
+
+    (centers, avgDist)
+  }
+
+  def makeMat(f1: Mat[Double],
+              centers: Seq[Vec[Double]],
+              bandwidths: Vec[Double]): Mat[Double] = {
+
+    val centerVecs =
+      centers.zip(bandwidths.toSeq)
+
+    Mat(f1.rows.map { row =>
+      makeRow(row, centerVecs)
+    }: _*).T
+
+  }
+
 }

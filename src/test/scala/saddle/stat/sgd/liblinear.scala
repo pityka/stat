@@ -85,17 +85,18 @@ class LibLinearSuite extends FunSuite {
                                            (0 to 50).toSeq.distinct
                                              .map(_.toDouble)
                                              .map(y => ymulti.find(_ == y))),
-      stat.crossvalidation.RandomSearch2D(() => rng.nextDouble),
-      hMin = -4d,
-      hMax = 2d,
-      hN = 20,
+      search = stat.crossvalidation.HyperParameterSearch
+        .RandomSearch2D(-4d, 2d, -4d, 2d, 20)(() => rng.nextDouble),
+      kernelFactory = IdentityFeatureMapFactory,
+      bootstrapAggregate = None,
       maxIterations = 50000,
       minEpochs = 1.0,
       convergedAverage = 10,
       epsilon = 1E-3,
       batchSize = 16,
       maxEvalSize = 2000,
-      rng
+      rng,
+      normalize = false
     )
 
     println(fitFista)

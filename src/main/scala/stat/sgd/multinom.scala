@@ -14,6 +14,21 @@ case class MultinomialLogisticRegression(numberOfClasses: Int)
 
   val C = numberOfClasses - 1
 
+  // TODO
+  def jacobi1D[T: MatOps](b: Vec[Double],
+                          batch: Batch[T],
+                          i: Int,
+                          xmbv: Vec[Double]): Double =
+    ???
+
+// TODO
+  def hessian1D[T: MatOps](p: Vec[Double],
+                           batch: Batch[T],
+                           i: Int,
+                           old: Option[Double],
+                           xmvb: Vec[Double]): Double =
+    ???
+
   def adaptPenalizationMask[T](batch: Batch[T]): Vec[Double] =
     mat.repeat(batch.penalizationMask, C).contents
 
@@ -28,7 +43,9 @@ case class MultinomialLogisticRegression(numberOfClasses: Int)
 
   def start(cols: Int): Vec[Double] = vec.zeros(cols * C)
 
-  def apply[T: MatOps](b: Vec[Double], batch: Batch[T]): Double = {
+  def apply[T: MatOps](b: Vec[Double],
+                       batch: Batch[T],
+                       work: Option[Array[Double]]): Double = {
     val bm = Mat(batch.x.numCols, C, b)
 
     val mops = implicitly[MatOps[T]]

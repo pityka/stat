@@ -4,14 +4,20 @@ import org.saddle._
 import org.saddle.linalg._
 import scala.util._
 import stat.matops._
+import slogging.StrictLogging
 
 case class CDState(point: Vec[Double],
-                   convergence: Double,
-                   obj: Double,
-                   hessianDiag: Vec[Double])
-    extends ItState
+                   hessianDiag: Vec[Double],
+                   activeSet: Int,
+                   work: Array[Double])
+    extends ItState {
+  override def toString =
+    "CDState"
+}
 
-object CoordinateDescentUpdater extends Updater[CDState] {
+case class CoordinateDescentUpdater(doActiveSet: Boolean = false)
+    extends Updater[CDState]
+    with StrictLogging {
   def next[M: MatOps](x: Vec[Double],
                       batch: Batch[M],
                       obj: ObjectiveFunction[_, _],
@@ -20,16 +26,21 @@ object CoordinateDescentUpdater extends Updater[CDState] {
 
     val penalizationMask = obj.adaptPenalizationMask(batch)
 
-    val innerSteps = 1
-
     val hessianDiag = last.map(_.hessianDiag).getOrElse {
+      val xmvb = batch.x mv x
       0 until x.length map { i =>
-        obj.hessian1D(x, batch, i, None)
+        obj.hessian1D(x, batch, i, None, xmvb)
       } toVec
     }
 
-    def objective(w: Vec[Double]): Double =
-      objectiveUnpenalized(w) + penaltyFunction(w)
+    val work = last.map(_.work).getOrElse {
+      Array.ofDim[Double](batch.y.length)
+    }
+
+    def objective(w: Vec[Double]): (Double, Double) = {
+      val x = objectiveUnpenalized(w)
+      (x * (-1), x + penaltyFunction(w))
+    }
 
     def penaltyFunction(w: Vec[Double]): Double =
       pen.apply(w, penalizationMask)
@@ -37,21 +48,27 @@ object CoordinateDescentUpdater extends Updater[CDState] {
     def shrink(w: Double, alpha1: Double, pm: Double) =
       pen.proximal1D(w, pm, alpha1)
 
-    def objectiveUnpenalized(w: Vec[Double]): Double = -1 * obj.apply(w, batch)
+    def objectiveUnpenalized(w: Vec[Double]): Double =
+      -1 * obj.apply(w, batch, Some(work))
 
     /* 1D Newton, then shrink. */
     def updateCoordinate(i: Int, x: Vec[Double], xmvb: Vec[Double]) = {
       val stepSize = {
-        val s = (-1d) / obj.hessian1D(x, batch, i, Some(hessianDiag.raw(i)))
+        val s = (-1d) / obj
+            .hessian1D(x, batch, i, Some(hessianDiag.raw(i)), xmvb)
         if (s.isInfinite) 1E-16 else s
       }
       val gradient = obj.jacobi1D(x, batch, i, xmvb) * (-1)
       shrink(x.raw(i) - gradient * stepSize, stepSize, penalizationMask.raw(i))
     }
 
-    val objCurrent = last.map(_.obj).getOrElse(objective(x))
-
     val matops = implicitly[MatOps[M]]
+    import matops.vops
+
+    val activeSetMode =
+      if (!doActiveSet) false
+      else
+        last.map(x => x.activeSet < 100).getOrElse(false)
 
     // mutated
     val xmvb: Array[Double] = batch.x mv x
@@ -63,35 +80,34 @@ object CoordinateDescentUpdater extends Updater[CDState] {
       ar
     }
 
-    var i = 0
-    val N = x.length
-    while (i < N) {
+    val coordinates =
+      if (activeSetMode) x.find(_ != 0.0)
+      else Vec(0 until x.length: _*)
 
-      val xcol: Array[Double] =
-        (matops.col(batch.x, i)).asInstanceOf[Vec[Double]] // TODO
+    // logger.trace("Coordinates: {}", coordinates.length)
 
-      var K = innerSteps
-      while (K > 0) {
-        val v = updateCoordinate(i, x2, xmvb)
+    var k = 0
+    val N = coordinates.length
+    while (k < N) {
+      val i = coordinates.raw(k)
 
-        var j = 0
-        val n = xmvb.size
-        while (j < n) {
-          xmvb(j) += xcol(j) * (v - x2(i))
-          j += 1
-        }
-
-        x2(i) = v
-        K -= 1
+      val v = updateCoordinate(i, x2, xmvb)
+      val oldV = x2(i)
+      var j = 0
+      val n = xmvb.size
+      while (j < n) {
+        xmvb(j) += matops.raw(batch.x, j, i) * (v - oldV)
+        j += 1
       }
-      i += 1
+
+      x2(i) = v
+      k += 1
     }
 
-    val objNext = objective(x2)
+    val activeSetCounter =
+      if (!activeSetMode) 0 else last.map(_.activeSet + 1).getOrElse(0)
 
-    val relError = (objNext - objCurrent) / objCurrent
-
-    CDState(x2, math.abs(relError), objNext, hessianDiag)
+    CDState(x2, hessianDiag, activeSetCounter, work)
 
   }
 }

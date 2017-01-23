@@ -38,14 +38,46 @@ object SparseVecOps extends VecOps[SVec] {
     }
     s
   }
+
+  def fromElems(s: Array[Double]): SVec =
+    SVec(Series((s: Vec[Double]), index.IndexIntRange(s.size)), s.size)
+
+  def euclid(t: T, t2: Vec[Double], t2inner: Double): Double =
+    stat.kmeans.euclid(t, t2, t2inner)
+
+  def elementWiseMultiplication(t: T, t2: Vec[Double]) = {
+    var ar = Array.ofDim[Double](t.values.length)
+    var i = 0
+    val v = t.values.toVec
+    val idx = t.values.index
+    while (i < v.length) {
+      val vv = v.raw(i)
+      val iv = idx.raw(i)
+      ar(i) = vv * t2.raw(iv)
+      i += 1
+    }
+    SVec(Series((ar: Vec[Double]), idx), t.length)
+  }
+
+  def raw(t: T, i: Int) =
+    if (t.values.index.contains(i))
+      t.values.toVec.raw(t.values.index.getFirst(i))
+    else 0d
+
+  def append(t1: T, t2: T): T = ???
 }
 
 object SparseMatOps extends MatOps[SMat] {
   type V = SVec
   type T = SMat
   implicit val vops: VecOps[V] = SparseVecOps
+
+  def fromRows(s: IndexedSeq[SVec]) = s
+
   def mv(t: T, v: Vec[Double]): Vec[Double] =
     t.map(row => vops.vv(row, v)).toVec
+
+  def mv(t: T, v: Vec[Double], w: Array[Double]): Vec[Double] = mv(t, v)
 
   def tmv(t: T, v: Vec[Double]): Vec[Double] = {
     val sums = Array.ofDim[Double](t.head.length)
@@ -186,9 +218,17 @@ object SparseMatOps extends MatOps[SMat] {
   def numRows(t: T): Int = stat.sparse.numRows(t)
   def numCols(t: T): Int = stat.sparse.numCols(t)
   def row(t: T, i: Int): SVec = t(i)
-  def col(t: T, i: Int): SVec = ???
+
   def raw(t: T, i: Int, j: Int): Double = get(t(i), j)
   def rows(t: T): IndexedSeq[V] = t
 
   def svd(t: T, i: Int): SVDResult = Svd(t, i)(this)
+
+  // TODO
+  def col(t: T, i: Int): SVec =
+    SVec(Series(t.zipWithIndex.view.map {
+      case (svec, j) =>
+        svec.values.first(i).map(x => j -> x)
+    }.filter(_.isDefined).map(_.get).toSeq: _*), t.size)
+
 }
