@@ -83,9 +83,10 @@ object HyperParameterSearch {
             logger.debug("trainOnTestEvalOnHoldout - hyper: {} - size: {}",
                          c,
                          idx.length)
-            val r =
+
+            val r: Vec[Double] =
               trainOnTestEvalOnHoldout(idx, trainer, split, c, start).toSeq.toVec
-                .map(_._1.obj)
+                .map(_._1.unpenalizedObjectivePerSample)
 
             val rmean = if (r.count > 1) Some(r.mean) else None
 

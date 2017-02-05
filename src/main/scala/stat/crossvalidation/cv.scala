@@ -3,7 +3,7 @@ package stat.crossvalidation
 import org.saddle._
 import scala.util.Random
 
-case class EvalR[E](obj: Double, misc: E)
+case class EvalR[E](unpenalizedObjectivePerSample: Double, misc: E)
 
 trait Train2[EvalRes, P, K] {
   def train(idx: Vec[Int]): Option[(Eval[EvalRes], HyperParameter[P, K])]

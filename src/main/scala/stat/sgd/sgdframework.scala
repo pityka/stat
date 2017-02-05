@@ -14,13 +14,15 @@ trait StoppingCriterion {
 }
 
 case class AbsoluteStopTraining(eps: Double) extends StoppingCriterion {
-  def continue[I](s: Step[I]): Boolean = math.abs(s.objective) > eps
+  def continue[I](s: Step[I]): Boolean =
+    math.abs(s.penalizedObjectivePerSample) > eps
 }
 
 case class AbsoluteStopValidation(eps: Double) extends StoppingCriterion {
   def continue[I](s: Step[I]): Boolean =
-    if (s.validationError.isEmpty) math.abs(s.objective) > eps
-    else math.abs(s.validationError.get) > eps
+    if (s.validationErrorPerSample.isEmpty)
+      math.abs(s.penalizedObjectivePerSample) > eps
+    else math.abs(s.validationErrorPerSample.get) > eps
 }
 
 case class RelativeStopValidation(eps: Double) extends StoppingCriterion {
@@ -38,19 +40,19 @@ case class StopAfterFixedIterations(i: Int) extends StoppingCriterion {
 }
 
 case class Step[I](state: I,
-                   objective: Double,
-                   validationError: Option[Double],
+                   penalizedObjectivePerSample: Double,
+                   validationErrorPerSample: Option[Double],
                    relObj: Double,
                    relValE: Option[Double],
                    count: Int) {
   override def toString =
-    s"Step(st=$state,o=$objective ,v=${validationError.getOrElse("NA")},ro=$relObj,rv=${relValE
-      .getOrElse("NA")},c=$count)"
+    s"Step(st=$state,o=$penalizedObjectivePerSample ,v=${validationErrorPerSample
+      .getOrElse("NA")},ro=$relObj,rv=${relValE.getOrElse("NA")},c=$count)"
 }
 
 trait EvaluateFit[E, @specialized(Double) P] extends Prediction[P] {
-  def evaluateFit[T: MatOps](batch: Batch[T]): Double
-  def evaluateFit2[T: MatOps](batch: Batch[T]): E
+  def unpenalizedObjectivePerSample[T: MatOps](batch: Batch[T]): Double
+  def evaluateFit[T: MatOps](batch: Batch[T]): E
 }
 
 trait ItState {
@@ -82,7 +84,7 @@ object SgdResultAggregator extends StrictLogging {
                                       s.head.result.model,
                                       s.head.result.kernel,
                                       s.head.result.normalizer),
-                            s.map(_.trainingError).toVec.mean,
+                            s.map(_.trainingErrorPerSample).toVec.mean,
                             None)
       }
     }
@@ -95,21 +97,24 @@ case class SgdResult[E, P](
     normalizer: Vec[Double]
 ) extends Prediction[P]
     with EvaluateFit[E, P] {
-  def scaledEstimatesV = estimatesV
+
   def predict(v: Vec[Double]) = predict(Mat(v).T).raw(0)
+
   def predict(m: Mat[Double]) =
     model.predictMat(
       estimatesV,
       kernel.applyMat(m.mDiagFromRight(normalizer))(DenseMatOps))
 
-  // sparse matrix does no normalization at the moment
+  // sparse matrix does no normalization at the moment TODO
   def predict[T: MatOps](m: T) =
     model.predict(estimatesV, kernel.applyMat(m))
 
-  def evaluateFit[T: MatOps](b: Batch[T]): Double =
-    model.apply(estimatesV, Batch(b, kernel))
-  def evaluateFit2[T: MatOps](b: Batch[T]): E =
+  def unpenalizedObjectivePerSample[T: MatOps](b: Batch[T]): Double =
+    model.apply(estimatesV, Batch(b, kernel)) / b.y.length
+
+  def evaluateFit[T: MatOps](b: Batch[T]): E =
     model.eval(estimatesV, Batch(b, kernel))
+
 }
 
 case class NamedSgdResult[E, P](
@@ -137,9 +142,10 @@ object NamedSgdResult {
       .read(upickle.json.read(s))
 }
 
-case class SgdResultWithErrors[E, P](result: SgdResult[E, P],
-                                     trainingError: Double,
-                                     validationError: Option[(Double, E)])
+case class SgdResultWithErrors[E, P](
+    result: SgdResult[E, P],
+    trainingErrorPerSample: Double,
+    validationErrorPerSample: Option[(Double, E)])
 
 object Sgd extends StrictLogging {
 
@@ -228,8 +234,8 @@ object Sgd extends StrictLogging {
              None).map { result =>
       SgdResultWithErrors(
         SgdResult(result.result.estimatesV, result.result.model, kernel, n1),
-        result.trainingError,
-        result.validationError)
+        result.trainingErrorPerSample,
+        result.validationErrorPerSample)
     }
   }
 
@@ -271,11 +277,9 @@ object Sgd extends StrictLogging {
         min: Int,
         tail: Int): Option[(Vec[Double], Double, Option[(Double, E)])] = {
 
-      // var list: List[Vec[Double]] = Nil
-
-      val t = {
-        val (pre, suf) = from.takeWhile { x =>
-          val nan = x.objective.isNaN
+      val lastIterationSteps: Seq[Step[I]] = {
+        val (pre, suf) = iterationStream.takeWhile { x =>
+          val nan = x.penalizedObjectivePerSample.isNaN
           if (nan) {
             logger.warn("NaN, stopping iteration. Last state: {}", x)
           }
@@ -294,7 +298,9 @@ object Sgd extends StrictLogging {
 
         if (validationBatch.isEmpty) tpre.takeRight(tail - tsuf.size) ++ tsuf
         else
-          (tpre ++ tsuf).sortBy(x => x.validationError.get).takeRight(tail)
+          (tpre ++ tsuf)
+            .sortBy(x => x.validationErrorPerSample.get)
+            .takeRight(tail)
       }
 
       // {
@@ -343,40 +349,48 @@ object Sgd extends StrictLogging {
       //   }
       // }
 
-      if (t.isEmpty) {
+      if (lastIterationSteps.isEmpty) {
         None
       } else {
 
-        val averagedPoint = t.map(_.state.point).reduce(_ + _) / t.size
+        val averagedPoint = lastIterationSteps
+            .map(_.state.point)
+            .reduce(_ + _) / lastIterationSteps.size
+
         logger.trace("active in averaged point: {} (n={})",
                      averagedPoint.countif(_ != 0d),
-                     t.size)
+                     lastIterationSteps.size)
 
-        val trainingError = t.map(x => x.objective).reduce(_ + _) / t.size
+        val trainingErrorOfAveragedPoint = lastIterationSteps
+            .map(x => x.penalizedObjectivePerSample)
+            .reduce(_ + _) / lastIterationSteps.size
 
-        val validationError =
+        val validationErrorOfAveragedPoint =
           validationBatchWithFeatureMap.map(b =>
             obj.apply(averagedPoint, b) / b.y.length)
 
-        val validationEval = validationError.map(x =>
-          x -> obj.eval(averagedPoint, validationBatchWithFeatureMap.get))
+        val validationEvalOfAveragedPoint = validationErrorOfAveragedPoint.map(
+          x => x -> obj.eval(averagedPoint, validationBatchWithFeatureMap.get))
 
-        validationEval.foreach(
-          validationEval =>
+        validationEvalOfAveragedPoint.foreach(
+          validationEvalOfAveragedPoint =>
             logger.debug(
               "Eval on {} samples. Validation - obj: {} / misc: {}. Training obj: {}",
               validationBatchWithFeatureMap.get.y.length,
-              validationEval._1,
-              validationEval._2,
-              trainingError
+              validationEvalOfAveragedPoint._1,
+              validationEvalOfAveragedPoint._2,
+              trainingErrorOfAveragedPoint
           ))
 
-        Some((averagedPoint, trainingError, validationEval))
+        Some(
+          (averagedPoint,
+           trainingErrorOfAveragedPoint,
+           validationEvalOfAveragedPoint))
       }
 
     }
 
-    def from: Stream[Step[I]] = {
+    def iterationStream: Stream[Step[I]] = {
 
       def loop(previousStep: Step[I]): Stream[Step[I]] =
         previousStep #:: loop({
@@ -391,24 +405,26 @@ object Sgd extends StrictLogging {
                          pen,
                          Some(previousStep.state))
 
-          val currentValidationError =
-            validationBatchWithFeatureMap.map(b => obj.apply(n.point, b))
+          val currentValidationErrorPerSample =
+            validationBatchWithFeatureMap.map(b =>
+              obj.apply(n.point, b) / b.y.length)
 
-          val currentObjective = (obj.apply(n.point, batch) - pen
-              .apply(n.point, batch.penalizationMask))
+          val currentObjectivePerSample = (obj.apply(n.point, batch) - pen
+              .apply(n.point, batch.penalizationMask)) / batch.y.length
 
-          val relObj = (currentObjective - previousStep.objective) / currentObjective
+          val relObj = (currentObjectivePerSample - previousStep.penalizedObjectivePerSample) / currentObjectivePerSample
 
-          val relValE = currentValidationError.map { c =>
-            (c - previousStep.validationError.get) / c
+          val relValE = currentValidationErrorPerSample.map { c =>
+            (c - previousStep.validationErrorPerSample.get) / c
           }
 
-          val next = Step(state = n,
-                          objective = currentObjective,
-                          validationError = currentValidationError,
-                          relObj = relObj,
-                          relValE = relValE,
-                          count = previousStep.count + 1)
+          val next =
+            Step(state = n,
+                 penalizedObjectivePerSample = currentObjectivePerSample,
+                 validationErrorPerSample = currentValidationErrorPerSample,
+                 relObj = relObj,
+                 relValE = relValE,
+                 count = previousStep.count + 1)
 
           logger.trace(
             "{}. Active: {}",
@@ -425,16 +441,17 @@ object Sgd extends StrictLogging {
 
       val firstStep = updater.next(start1, batch, obj, pen, None)
 
-      val currentValidationError =
-        validationBatchWithFeatureMap.map(b => obj.apply(firstStep.point, b))
+      val currentValidationErrorPerSample =
+        validationBatchWithFeatureMap.map(b =>
+          obj.apply(firstStep.point, b) / b.y.length)
 
-      val currentObjective = (obj.apply(firstStep.point, batch) - pen
-          .apply(firstStep.point, batch.penalizationMask))
+      val currentObjectivePerSample = (obj.apply(firstStep.point, batch) - pen
+          .apply(firstStep.point, batch.penalizationMask)) / batch.y.length
 
       loop(
         Step(firstStep,
-             currentObjective,
-             currentValidationError,
+             currentObjectivePerSample,
+             currentValidationErrorPerSample,
              1.0,
              Some(1.0),
              1)

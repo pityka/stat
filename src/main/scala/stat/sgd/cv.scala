@@ -162,8 +162,9 @@ object Cv {
       def eval(result: SgdResultWithErrors[E, P]) = new Eval[E] {
         def eval(idx: Vec[Int]): EvalR[E] = {
 
-          if (result.validationError.isDefined)
-            EvalR(result.validationError.get._1, result.validationError.get._2)
+          if (result.validationErrorPerSample.isDefined)
+            EvalR(result.validationErrorPerSample.get._1,
+                  result.validationErrorPerSample.get._2)
           else {
             logger.debug(
               "Validation error was not precomputed. Doing in Eval#eval. ")
@@ -173,8 +174,10 @@ object Cv {
                   batchSize = math.min(idx.length, evalBatchSize),
                   rng).training.next.next
 
-            val obj = result.result.evaluateFit(batch)
-            val e = result.result.evaluateFit2(batch)
+            val obj: Double =
+              result.result.unpenalizedObjectivePerSample(batch)
+            val e: E = result.result.evaluateFit(batch)
+
             logger.debug(
               "Eval  on {} out of {}: obj - {}, misc - {}",
               math.min(idx.length, evalBatchSize),
@@ -204,31 +207,17 @@ object Cv {
               .next
           }
 
-        val r = Sgd.optimize(dataSource,
-                             obj,
-                             pen.withHyperParameter(hyper.penalty),
-                             upd,
-                             kernel(hyper.kernel),
-                             maxIterations,
-                             minEpochs,
-                             convergedAverage,
-                             stop,
-                             validationBatch,
-                             start)
-
-        // r.foreach { r =>
-        //   val batch = dataSource.training.next.next
-        //   val trainingError = r.evaluateFit(batch)
-        //   val e = r.evaluateFit2(batch)
-        //   logger.debug(
-        //     "Training error on {}: obj - {}, misc - {}",
-        //     batch.y.length,
-        //     trainingError,
-        //     e
-        //   )
-        // }
-
-        r
+        Sgd.optimize(dataSource,
+                     obj,
+                     pen.withHyperParameter(hyper.penalty),
+                     upd,
+                     kernel(hyper.kernel),
+                     maxIterations,
+                     minEpochs,
+                     convergedAverage,
+                     stop,
+                     validationBatch,
+                     start)
 
       }
 
