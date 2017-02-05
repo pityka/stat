@@ -19,7 +19,7 @@ object saddle {
   def prep[R: ST: ORD](f: Frame[R, String, String],
                        missingMode: MissingMode,
                        forceCategorical: Set[String] = Set[String](),
-                       naString: Set[String] = Set("na", "n/a"),
+                       naString: Set[String] = Set("na", "n/a", ""),
                        normalize: Boolean = false) = {
     import org.saddle.io._
     val categorical = nonNumericColumns(f, naString, forceCategorical)
@@ -44,7 +44,7 @@ object saddle {
 
   def nonNumericColumns[R: ST: ORD](
       f: Frame[R, String, String],
-      naString: Set[String] = Set("na", "n/a"),
+      naString: Set[String] = Set("na", "n/a", ""),
       force: Set[String]): Seq[(String, Seq[String])] =
     f.toColSeq.filter {
       case (cx, series) =>
@@ -52,7 +52,10 @@ object saddle {
           d =>
             if (naString.contains(d.toLowerCase.trim)) false
             else
-              try ({ d.toDouble; false })
+              try ({
+                d.toDouble;
+                false
+              })
               catch { case _: NumberFormatException => true })
     }.map(x => x._1 -> x._2.toVec.toSeq.distinct)
 
