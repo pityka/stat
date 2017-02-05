@@ -195,17 +195,8 @@ object LogisticRegression
 
     /* c vv y - XmvB */
 
-    // var s = 0d
-    // var j = 0
-    // val n = c.length
-    // while (j < n) {
-    //   s += c.raw(j) * (y.raw(j) - pi.raw(j))
-    //   j += 1
-    // }
-    // s
-    // val r = s
     val r = vops.vv(c, y - pi)
-    assert(r == jacobi(b, batch).raw(i), r + " " + jacobi(b, batch).raw(i))
+    // assert(r == jacobi(b, batch).raw(i), r + " " + jacobi(b, batch).raw(i))
     r
   }
 
