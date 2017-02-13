@@ -35,6 +35,19 @@ lazy val example1 = project
   .settings(reformatOnCompileSettings: _*)
   .dependsOn(root)
 
+lazy val example2 = project
+  .in(file("examples/classification"))
+  .settings(
+    libraryDependencies ++= Seq(
+      "io.github.pityka" %% "nspl-awt" % "0.0.14",
+      "io.github.pityka" %% "fileutils" % "1.0.0",
+      "com.lihaoyi" %% "upickle" % "0.4.3"
+    ),
+    scalaVersion := "2.11.8"
+  )
+  .settings(reformatOnCompileSettings: _*)
+  .dependsOn(root)
+
 pomExtra in Global := {
   <url>https://pityka.github.io/stat</url>
   <licenses>
