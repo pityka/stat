@@ -32,8 +32,8 @@ class KMeansSuite extends FunSuite {
     show(plot(data, res, 3))
   }
 
-  test("sparse big") {
-    val ncol = 100000
+  ignore("sparse big") {
+    val ncol = 10000
     val nclust = 1000
     val data = 0 until 1000 map { i =>
       val v = 0 until ncol map { j =>

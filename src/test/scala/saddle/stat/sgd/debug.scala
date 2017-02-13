@@ -12,7 +12,7 @@ class DebugSuite extends FunSpec with Matchers {
 
   describe("debug") {
 
-    it("L2") {
+    ignore("L2") {
 
       val samples = 1000
       val nCol = 2
@@ -48,7 +48,7 @@ class DebugSuite extends FunSpec with Matchers {
           maxIterations = 400,
           minEpochs = 2d,
           convergedAverage = 200,
-          epsilon = 1E-3,
+          stop = RelativeStopTraining(1E-3),
           batchSize = batch,
           rng = scala.util.Random,
           normalize = true,
@@ -67,7 +67,7 @@ class DebugSuite extends FunSpec with Matchers {
           maxIterations = 400,
           minEpochs = 2d,
           convergedAverage = 200,
-          epsilon = 1E-3,
+          stop = RelativeStopTraining(1E-3),
           batchSize = batch,
           rng = scala.util.Random,
           normalize = true,
@@ -81,12 +81,12 @@ class DebugSuite extends FunSpec with Matchers {
           MatrixData(design, ly, penalizationMask = vec.ones(columns)),
           sgd.LinearRegression,
           L2(lambda),
-          CoordinateDescentUpdater,
+          CoordinateDescentUpdater(),
           kernel = IdentityFeatureMap,
           maxIterations = 400,
           minEpochs = 2d,
           convergedAverage = 200,
-          epsilon = 1E-3,
+          stop = RelativeStopTraining(1E-3),
           batchSize = batch,
           rng = scala.util.Random,
           normalize = true,
@@ -130,7 +130,7 @@ class DebugSuite extends FunSpec with Matchers {
           maxIterations = 400,
           minEpochs = 2d,
           convergedAverage = 200,
-          epsilon = 1E-3,
+          stop = RelativeStopTraining(1E-3),
           batchSize = batch,
           rng = scala.util.Random,
           normalize = false,
@@ -144,12 +144,12 @@ class DebugSuite extends FunSpec with Matchers {
           MatrixData(design, ly, penalizationMask = vec.ones(columns)),
           sgd.LinearRegression,
           L1(lambda),
-          CoordinateDescentUpdater,
+          CoordinateDescentUpdater(),
           kernel = IdentityFeatureMap,
           maxIterations = 400,
           minEpochs = 2d,
           convergedAverage = 200,
-          epsilon = 1E-3,
+          stop = RelativeStopTraining(1E-3),
           batchSize = batch,
           rng = scala.util.Random,
           normalize = false,

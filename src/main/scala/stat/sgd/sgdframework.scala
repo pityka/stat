@@ -123,7 +123,6 @@ case class NamedSgdResult[E, P](
 ) extends NamedPrediction[P]
     with Prediction[P] {
   def estimatesV = raw.estimatesV
-  def scaledEstimatesV = estimatesV
 
   def predict(v: Vec[Double]) = raw.predict(v)
   def predict(m: Mat[Double]) = raw.predict(m)
@@ -409,8 +408,10 @@ object Sgd extends StrictLogging {
             validationBatchWithFeatureMap.map(b =>
               obj.apply(n.point, b) / b.y.length)
 
-          val currentObjectivePerSample = (obj.apply(n.point, batch) - pen
-              .apply(n.point, batch.penalizationMask)) / batch.y.length
+          val currentObjectivePerSample = (obj
+              .apply(n.point, batch) - pen.apply(
+              n.point,
+              obj.adaptPenalizationMask(batch))) / batch.y.length
 
           val relObj = (currentObjectivePerSample - previousStep.penalizedObjectivePerSample) / currentObjectivePerSample
 
@@ -445,8 +446,10 @@ object Sgd extends StrictLogging {
         validationBatchWithFeatureMap.map(b =>
           obj.apply(firstStep.point, b) / b.y.length)
 
-      val currentObjectivePerSample = (obj.apply(firstStep.point, batch) - pen
-          .apply(firstStep.point, batch.penalizationMask)) / batch.y.length
+      val currentObjectivePerSample = (obj
+          .apply(firstStep.point, batch) - pen.apply(
+          firstStep.point,
+          obj.adaptPenalizationMask(batch))) / batch.y.length
 
       loop(
         Step(firstStep,

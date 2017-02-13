@@ -107,7 +107,8 @@ class LassoSuite extends FunSpec with Matchers {
                     "V22",
                     stat.sgd.LinearRegression,
                     stat.sgd.L2(0.5d),
-                    stat.sgd.NewtonUpdater)
+                    stat.sgd.NewtonUpdater,
+                    normalize = false)
           .get
 
       val sgdresultfista =
@@ -116,7 +117,8 @@ class LassoSuite extends FunSpec with Matchers {
                     "V22",
                     stat.sgd.LinearRegression,
                     stat.sgd.L2(0.5d),
-                    stat.sgd.FistaUpdater)
+                    stat.sgd.FistaUpdater,
+                    normalize = false)
           .get
 
       val ln =
@@ -161,12 +163,12 @@ class LassoSuite extends FunSpec with Matchers {
       //     (math.abs(x - y) < 0.01) should equal(true)
       // }
 
-      (glmnet zip sgdresult.scaledEstimatesV.toSeq).foreach {
+      (glmnet zip sgdresult.estimatesV.toSeq).foreach {
         case (x, y) =>
           (math.abs(x - y) < 0.01) should equal(true)
       }
 
-      (glmnet zip sgdresultfista.scaledEstimatesV.toSeq).foreach {
+      (glmnet zip sgdresultfista.estimatesV.toSeq).foreach {
         case (x, y) =>
           (math.abs(x - y) < 0.01) should equal(true)
       }
@@ -183,7 +185,8 @@ class LassoSuite extends FunSpec with Matchers {
                     "V22",
                     stat.sgd.LinearRegression,
                     stat.sgd.L1(0.5d),
-                    stat.sgd.FistaUpdater)
+                    stat.sgd.FistaUpdater,
+                    normalize = false)
           .get
 
       val sgdCD =
@@ -192,9 +195,10 @@ class LassoSuite extends FunSpec with Matchers {
                     "V22",
                     stat.sgd.LinearRegression,
                     stat.sgd.L1(0.5d),
-                    stat.sgd.CoordinateDescentUpdater,
+                    stat.sgd.CoordinateDescentUpdater(),
                     minEpochs = 1d,
-                    convergedAverage = 10)
+                    convergedAverage = 10,
+                    normalize = false)
           .get
 
       // this is glmnet lambda=0.5/200 because they use different weighting inside the objective function
@@ -262,7 +266,7 @@ class LassoSuite extends FunSpec with Matchers {
       //     (math.abs(x - y) < 0.01) should equal(true)
       // }
 
-      (glmnet zip sgdFista.scaledEstimatesV.toSeq).foreach {
+      (glmnet zip sgdFista.estimatesV.toSeq).foreach {
         case (x, y) =>
           if (!(math.abs(x - y) < 0.01)) {
             println("glmnet: " + x + " vs sgd fista: " + y)
@@ -270,7 +274,7 @@ class LassoSuite extends FunSpec with Matchers {
           (math.abs(x - y) < 0.01) should equal(true)
       }
 
-      (glmnet zip sgdCD.scaledEstimatesV.toSeq).foreach {
+      (glmnet zip sgdCD.estimatesV.toSeq).foreach {
         case (x, y) =>
           if (!(math.abs(x - y) < 0.01)) {
             println("glmnet: " + x + " vs sgd CD: " + y)
@@ -294,7 +298,9 @@ class LassoSuite extends FunSpec with Matchers {
                     "V22",
                     stat.sgd.LinearRegression,
                     stat.sgd.L1(50d),
-                    stat.sgd.FistaUpdater)
+                    stat.sgd.FistaUpdater,
+                    normalize = false,
+                    convergedAverage = 1)
           .get
 
       val sgdCD =
@@ -303,9 +309,10 @@ class LassoSuite extends FunSpec with Matchers {
                     "V22",
                     stat.sgd.LinearRegression,
                     stat.sgd.L1(50d),
-                    stat.sgd.CoordinateDescentUpdater,
+                    stat.sgd.CoordinateDescentUpdater(),
                     minEpochs = 1d,
-                    convergedAverage = 2)
+                    convergedAverage = 2,
+                    normalize = false)
           .get
 
       val expected = Vector(0.2624592395351088,
@@ -338,20 +345,20 @@ class LassoSuite extends FunSpec with Matchers {
       //     (math.abs(x - y) < 0.02) should equal(true)
       // }
 
-      (expected zip sgdFista.scaledEstimatesV.toSeq).foreach {
+      (expected zip sgdFista.estimatesV.toSeq).foreach {
         case (x, y) =>
-          if (!(math.abs(x - y) < 0.05)) {
+          if (!(math.abs(x - y) < 0.1)) {
             println("penalized: " + x + " vs sgd fista: " + y)
           }
-          (math.abs(x - y) < 0.05) should equal(true)
+          (math.abs(x - y) < 0.1) should equal(true)
       }
 
-      (expected zip sgdCD.scaledEstimatesV.toSeq).foreach {
+      (expected zip sgdCD.estimatesV.toSeq).foreach {
         case (x, y) =>
-          if (!(math.abs(x - y) < 0.05)) {
+          if (!(math.abs(x - y) < 0.1)) {
             println("penalized: " + x + " vs sgd cd: " + y)
           }
-          (math.abs(x - y) < 0.05) should equal(true)
+          (math.abs(x - y) < 0.1) should equal(true)
       }
 
       // (glmnet zip lassoresult.coefficients.toSeq).foreach {
@@ -374,7 +381,8 @@ class LassoSuite extends FunSpec with Matchers {
                     "V22",
                     stat.sgd.LinearRegression,
                     stat.sgd.L2(50d),
-                    stat.sgd.NewtonUpdater)
+                    stat.sgd.NewtonUpdater,
+                    normalize = false)
           .get
 
       val sgdresultFista =
@@ -383,7 +391,8 @@ class LassoSuite extends FunSpec with Matchers {
                     "V22",
                     stat.sgd.LinearRegression,
                     stat.sgd.L2(50d),
-                    stat.sgd.FistaUpdater)
+                    stat.sgd.FistaUpdater,
+                    normalize = false)
           .get
 
       val sgdresultCD =
@@ -392,9 +401,22 @@ class LassoSuite extends FunSpec with Matchers {
                     "V22",
                     stat.sgd.LinearRegression,
                     stat.sgd.L2(50d),
-                    stat.sgd.CoordinateDescentUpdater,
+                    stat.sgd.CoordinateDescentUpdater(),
                     minEpochs = 1d,
-                    convergedAverage = 2)
+                    convergedAverage = 2,
+                    normalize = false)
+          .get
+
+      val sgdresultSimple =
+        stat.sgd.Sgd
+          .optimize(frame,
+                    "V22",
+                    stat.sgd.LinearRegression,
+                    stat.sgd.L2(50d),
+                    stat.sgd.SimpleUpdater(1E-4),
+                    minEpochs = 1d,
+                    convergedAverage = 2,
+                    normalize = false)
           .get
 
       val expected = Vector(0.31779827279977835,
@@ -465,28 +487,36 @@ class LassoSuite extends FunSpec with Matchers {
       //     (math.abs(x - y) < 0.1) should equal(true)
       // }
 
-      (expected zip sgdresult.scaledEstimatesV.toSeq).foreach {
+      (expected zip sgdresult.estimatesV.toSeq).foreach {
         case (x, y) =>
           if (!(math.abs(x - y) < 0.01)) {
             println("penalized: " + x + " vs my newton: " + y)
           }
-          (math.abs(x - y) < 0.01) should equal(true)
+          (math.abs(x - y) < 0.1) should equal(true)
       }
 
-      (expected zip sgdresultFista.scaledEstimatesV.toSeq).foreach {
+      (expected zip sgdresultFista.estimatesV.toSeq).foreach {
         case (x, y) =>
           if (!(math.abs(x - y) < 0.01)) {
             println("penalized: " + x + " vs my fista: " + y)
           }
-          (math.abs(x - y) < 0.01) should equal(true)
+          (math.abs(x - y) < 0.1) should equal(true)
       }
 
-      (expected zip sgdresultCD.scaledEstimatesV.toSeq).foreach {
+      (expected zip sgdresultCD.estimatesV.toSeq).foreach {
         case (x, y) =>
           if (!(math.abs(x - y) < 0.01)) {
             println("penalized: " + x + " vs my cd: " + y)
           }
-          (math.abs(x - y) < 0.01) should equal(true)
+          (math.abs(x - y) < 0.1) should equal(true)
+      }
+
+      (expected zip sgdresultSimple.estimatesV.toSeq).foreach {
+        case (x, y) =>
+          if (!(math.abs(x - y) < 0.01)) {
+            println("penalized: " + x + " vs my simple: " + y)
+          }
+          (math.abs(x - y) < 0.1) should equal(true)
       }
 
     }
@@ -703,7 +733,8 @@ class LassoSuite extends FunSpec with Matchers {
                     "V22",
                     stat.sgd.LinearRegression,
                     stat.sgd.ElasticNet(50d, 25d),
-                    stat.sgd.FistaUpdater)
+                    stat.sgd.FistaUpdater,
+                    normalize = false)
           .get
 
       val sgdresultCD =
@@ -712,9 +743,10 @@ class LassoSuite extends FunSpec with Matchers {
                     "V22",
                     stat.sgd.LinearRegression,
                     stat.sgd.ElasticNet(50d, 25d),
-                    stat.sgd.CoordinateDescentUpdater,
+                    stat.sgd.CoordinateDescentUpdater(),
                     minEpochs = 1d,
-                    convergedAverage = 2)
+                    convergedAverage = 2,
+                    normalize = false)
           .get
 
       val penalized = Seq(

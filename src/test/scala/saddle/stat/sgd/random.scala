@@ -11,7 +11,7 @@ class LMOverfitRandomSuite extends FunSuite {
   slogging.LoggerConfig.level = slogging.LogLevel.TRACE
   test("random ") {
     val samples = 100
-    val nCol = 200
+    val nCol = 20
     val columns = nCol * samples
     val design = mat.randn(samples, columns)
     val betas: Vec[Double] = vec.randn(20) concat vec.zeros(
@@ -26,28 +26,28 @@ class LMOverfitRandomSuite extends FunSuite {
       FistaUpdater,
       Split(0.9, rng),
       stat.crossvalidation.KFold(5, rng, 1),
-      stat.crossvalidation.HyperParameterSearch.GridSearch1D(-6d, 15d, 10),
+      stat.crossvalidation.HyperParameterSearch.GridSearch1D(-6d, 15d, 3),
       IdentityFeatureMapFactory,
       bootstrapAggregate = None,
       maxIterations = 3000,
       minEpochs = 1,
       convergedAverage = 2,
-      epsilon = 1E-2,
+      stop = RelativeStopTraining(1E-6),
       batchSize = design.numRows,
       maxEvalSize = design.numRows,
       rng = rng,
-      normalize = false
+      normalize = true
     )
     println(fitFista)
 
-    assert(fitFista._1.misc > 0.95)
+    assert(fitFista._1.misc < 0.1)
 
   }
 }
 
 class LMRandomSuite extends FunSuite {
   slogging.LoggerConfig.factory = slogging.PrintLoggerFactory()
-  slogging.LoggerConfig.level = slogging.LogLevel.DEBUG
+  slogging.LoggerConfig.level = slogging.LogLevel.TRACE
   test("random ") {
     val samples = 1000
     val nCol = 5
@@ -63,20 +63,20 @@ class LMRandomSuite extends FunSuite {
       MatrixData(design, ly, penalizationMask = vec.ones(columns)),
       sgd.LinearRegression,
       L1(1.0),
-      FistaUpdater,
+      CoordinateDescentUpdater(),
       Split(0.9, rng),
       stat.crossvalidation.KFold(5, rng, 1),
-      stat.crossvalidation.HyperParameterSearch.GridSearch1D(-6d, 15d, 10),
+      stat.crossvalidation.HyperParameterSearch.GridSearch1D(-1d, 15d, 3),
       IdentityFeatureMapFactory,
       bootstrapAggregate = None,
       maxIterations = 3000,
       minEpochs = 1,
       convergedAverage = 2,
-      epsilon = 1E-2,
+      stop = RelativeStopTraining(1E-4),
       batchSize = design.numRows,
       maxEvalSize = design.numRows,
       rng = rng,
-      normalize = false
+      normalize = true
     )
     println(fitFista)
 
@@ -87,7 +87,7 @@ class LMRandomSuite extends FunSuite {
 
 class LRRandomSuite extends FunSuite {
   slogging.LoggerConfig.factory = slogging.PrintLoggerFactory()
-  slogging.LoggerConfig.level = slogging.LogLevel.DEBUG
+  slogging.LoggerConfig.level = slogging.LogLevel.TRACE
   test("random ") {
     val samples = 1000
     val columns = 10000
@@ -101,21 +101,21 @@ class LRRandomSuite extends FunSuite {
       MatrixData(design, ly, penalizationMask = vec.ones(columns)),
       sgd.LogisticRegression,
       ElasticNet(1.0, 1.0),
-      FistaUpdater,
+      CoordinateDescentUpdater(true),
       Split(0.8, rng),
       stat.crossvalidation.KFold(5, rng, 1),
       stat.crossvalidation.HyperParameterSearch
-        .RandomSearch2D(-6d, 15d, -6d, 15d, 10)(() => rng.nextDouble),
+        .RandomSearch2D(-1d, 5d, -1d, 5d, 5)(() => rng.nextDouble),
       IdentityFeatureMapFactory,
       bootstrapAggregate = None,
       maxIterations = 5000,
       minEpochs = 1,
       convergedAverage = 2,
-      epsilon = 1E-3,
+      stop = RelativeStopTraining(1E-4),
       batchSize = design.numRows,
       maxEvalSize = design.numRows,
       rng,
-      normalize = false
+      normalize = true
     )
     println(fitFista)
 
@@ -144,20 +144,20 @@ class MNLRRandomSuite extends FunSuite {
       Split(0.8, rng),
       stat.crossvalidation.KFold(5, rng, 1),
       stat.crossvalidation.HyperParameterSearch
-        .RandomSearch2D(-6d, 15d, -6d, 15d, 10)(() => rng.nextDouble),
+        .RandomSearch2D(-1d, 5d, -1d, 5d, 4)(() => rng.nextDouble),
       IdentityFeatureMapFactory,
       bootstrapAggregate = None,
       maxIterations = 5000,
       minEpochs = 1,
       convergedAverage = 2,
-      epsilon = 1E-3,
+      stop = RelativeStopTraining(1E-4),
       batchSize = design.numRows,
       maxEvalSize = design.numRows,
       rng,
-      normalize = false
+      normalize = true
     )
     println(fitFista)
-    assert(fitFista._1.misc.accuracy > 0.75)
+    assert(fitFista._1.misc.accuracy > 0.7)
 
   }
 }

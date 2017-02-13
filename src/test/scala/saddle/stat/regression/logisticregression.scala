@@ -72,7 +72,8 @@ class LogRegSuite extends FunSuite {
                   "y",
                   sgd.LogisticRegression,
                   sgd.L2(0d),
-                  sgd.NewtonUpdater)
+                  sgd.NewtonUpdater,
+                  normalize = false)
         .get
 
     assert(

@@ -92,7 +92,7 @@ class LibLinearSuite extends FunSuite {
       maxIterations = 50000,
       minEpochs = 1.0,
       convergedAverage = 10,
-      epsilon = 1E-3,
+      stop = RelativeStopTraining(1E-3),
       batchSize = 16,
       maxEvalSize = 2000,
       rng,
