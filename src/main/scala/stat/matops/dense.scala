@@ -16,7 +16,7 @@ object DenseVecOps extends VecOps[Vec[Double]] {
   def elementWiseMultiplication(t: T, m: Vec[Double]): T = t * m
   def raw(t: T, i: Int) = t.raw(i)
   def append(t1: T, t2: T) = t1 concat t2
-
+  def toDense(v: T): Vec[Double] = v
 }
 
 object DenseMatOps extends MatOps[Mat[Double]] with LinearMap[Mat[Double]] {

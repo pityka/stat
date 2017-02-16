@@ -16,6 +16,8 @@ trait VecOps[T] {
   def elementWiseMultiplication(t: T, m: Vec[Double]): T
   def raw(t: T, i: Int): Double
   def append(t1: T, t2: T): T
+
+  def toDense(v: T): Vec[Double]
 }
 
 trait LinearMap[T] {

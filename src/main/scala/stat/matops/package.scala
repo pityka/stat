@@ -25,7 +25,7 @@ package object matops {
     def *(o: Vec[Double]): T = op.elementWiseMultiplication(t, o)
     def raw(i: Int): Double = op.raw(t, i)
     def append(t2: T) = op.append(t, t2)
-
+    def toDense = op.toDense(t)
   }
 
   implicit def vops[T](implicit m: MatOps[T]): VecOps[m.V] = m.vops

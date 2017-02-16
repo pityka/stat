@@ -65,6 +65,7 @@ object SparseVecOps extends VecOps[SVec] {
     else 0d
 
   def append(t1: T, t2: T): T = ???
+  def toDense(t: T) = stat.sparse.dense(t)
 }
 
 object SparseMatOps extends MatOps[SMat] {
