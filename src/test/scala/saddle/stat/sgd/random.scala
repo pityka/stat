@@ -36,7 +36,8 @@ class LMOverfitRandomSuite extends FunSuite {
       batchSize = design.numRows,
       maxEvalSize = design.numRows,
       rng = rng,
-      normalize = true
+      normalize = true,
+      warmStart = true
     )
     println(fitFista)
 
@@ -76,7 +77,8 @@ class LMRandomSuite extends FunSuite {
       batchSize = design.numRows,
       maxEvalSize = design.numRows,
       rng = rng,
-      normalize = true
+      normalize = true,
+      warmStart = true
     )
     println(fitFista)
 
@@ -115,7 +117,8 @@ class LRRandomSuite extends FunSuite {
       batchSize = design.numRows,
       maxEvalSize = design.numRows,
       rng,
-      normalize = true
+      normalize = true,
+      warmStart = true
     )
     println(fitFista)
 
@@ -154,7 +157,8 @@ class MNLRRandomSuite extends FunSuite {
       batchSize = design.numRows,
       maxEvalSize = design.numRows,
       rng,
-      normalize = true
+      normalize = true,
+      warmStart = true
     )
     println(fitFista)
     assert(fitFista._1.misc.accuracy > 0.7)

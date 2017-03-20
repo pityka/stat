@@ -419,6 +419,18 @@ class LassoSuite extends FunSpec with Matchers {
                     normalize = false)
           .get
 
+      val sgdresultadagrad =
+        stat.sgd.Sgd
+          .optimize(frame,
+                    "V22",
+                    stat.sgd.LinearRegression,
+                    stat.sgd.L2(50d),
+                    stat.sgd.AdaGradUpdater(1E-2),
+                    minEpochs = 1d,
+                    convergedAverage = 2,
+                    normalize = false)
+          .get
+
       val expected = Vector(0.31779827279977835,
                             0.935952664134286,
                             0.07008021877647175,
@@ -515,6 +527,14 @@ class LassoSuite extends FunSpec with Matchers {
         case (x, y) =>
           if (!(math.abs(x - y) < 0.01)) {
             println("penalized: " + x + " vs my simple: " + y)
+          }
+          (math.abs(x - y) < 0.1) should equal(true)
+      }
+
+      (expected zip sgdresultadagrad.estimatesV.toSeq).foreach {
+        case (x, y) =>
+          if (!(math.abs(x - y) < 0.01)) {
+            println("penalized: " + x + " vs my adagrad: " + y)
           }
           (math.abs(x - y) < 0.1) should equal(true)
       }

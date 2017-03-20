@@ -20,16 +20,23 @@ trait Train[EvalRes, PHyper, Res, KHyper] {
 object Train {
   def nestedSearch[E, H, R, K](t: Train[E, H, R, K],
                                split: CVSplit,
-                               search: HyperParameterSearch[H, K]) =
-    new Train2[E, H, K] {
+                               search: HyperParameterSearch[H, K],
+                               warmStart: Boolean) =
+    new Train2[E, H, K] with slogging.StrictLogging {
       def train(idx: Vec[Int]): Option[(Eval[E], HyperParameter[H, K])] = {
         search(
           idx,
           t,
-          split
+          split,
+          warmStart
         ).flatMap {
           case (opt, start) =>
-            t.train(idx, opt, None, start).map(r => (t.eval(r), opt))
+            logger.debug(
+              "Retraining with optimal hyperparameter: {}, using warm start: {}",
+              opt,
+              warmStart)
+            t.train(idx, opt, None, if (warmStart) start else None)
+              .map(r => (t.eval(r), opt))
         }
       }
     }

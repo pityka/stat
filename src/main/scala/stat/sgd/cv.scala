@@ -36,7 +36,8 @@ object Cv {
       batchSize: Option[Int],
       stop: StoppingCriterion,
       rng: scala.util.Random,
-      normalize: Boolean
+      normalize: Boolean,
+      warmStart: Boolean
   ): (EvalR[E], NamedSgdResult[E, P]) = {
 
     val (x, y, std) =
@@ -64,7 +65,8 @@ object Cv {
                 batchSize.getOrElse(data.numRows),
                 data.numRows,
                 rng,
-                normalize)
+                normalize,
+                warmStart)
 
     val idx =
       obj
@@ -94,7 +96,8 @@ object Cv {
       batchSize: Int,
       maxEvalSize: Int,
       rng: scala.util.Random,
-      normalize: Boolean
+      normalize: Boolean,
+      warmStart: Boolean
   )(implicit dsf: DataSourceFactory[D, M]): (EvalR[E], SgdResult[E, P]) = {
     import dsf.ops
 
@@ -126,7 +129,7 @@ object Cv {
       else t
     }
 
-    val nested = Train.nestedSearch(training, split, search)
+    val nested = Train.nestedSearch(training, split, search, warmStart)
 
     val allidx = dsf.getAllIdx(normed)
 

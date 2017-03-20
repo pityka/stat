@@ -96,7 +96,8 @@ class LibLinearSuite extends FunSuite {
       batchSize = 16,
       maxEvalSize = 2000,
       rng,
-      normalize = false
+      normalize = false,
+      warmStart = true
     )
 
     println(fitFista)

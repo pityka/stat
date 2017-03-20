@@ -63,7 +63,7 @@ package object crossvalidation extends StrictLogging {
     if (splits.isEmpty) Iterator.empty
     else {
       val (test, holdout) = splits.next
-      logger.trace("train: {} , eval: {} ", test.length, holdout.length)
+      logger.debug("train: {} , eval: {} ", test.length, holdout.length)
       val first = trainer.train(test, hyper, Some(holdout), start).map {
         result =>
           val fit = trainer.eval(result)
@@ -73,7 +73,10 @@ package object crossvalidation extends StrictLogging {
       val rest = splits.map {
         case (test, holdout) =>
           val start = first.map(_._2)
-          logger.trace("train: {} , eval: {} ", test.length, holdout.length)
+          logger.debug(
+            "train: {} , eval: {}, using warm starting estimate from the first split ",
+            test.length,
+            holdout.length)
           trainer.train(test, hyper, Some(holdout), start).map { result =>
             val fit = trainer.eval(result)
             (fit.eval(holdout), fit.estimatesV)

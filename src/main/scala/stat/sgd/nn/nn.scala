@@ -10,21 +10,33 @@ case class NeuralNetwork(shape: Vector[Int],
                          rng: scala.util.Random = scala.util.Random)
     extends ObjectiveFunction[Double, Double] {
 
-  def logistic(x: Double) = {
-    val e = math.exp(x)
-    e / (1 + e)
+  def logsumexp(x1: Double, x2: Double) = {
+    val max = if (x1 > x2) x1 else x2
+    math.log(math.exp(x1 - max) + math.exp(x2 - max)) + max
   }
+
+  def logistic(x: Double) =
+    math.exp(x - logsumexp(math.log(1), x))
+
+  def softplus(x: Double) =
+    logsumexp(math.log(1), x)
 
   def logisticPrime(x: Double) = {
     val f = logistic(x)
     f * (1 - f)
   }
 
+  def relu(x: Double) = if (x < 0.0) 0.01 * x else x
+  def reluPrime(x: Double) = if (x <= 0.0) 0.01d else 1d
+
+  val activation = relu _
+  val activationPrime = reluPrime _
+
   val numW = shape.size
 
   def shapeW(i: Int, xCols: Int): (Int, Int) =
-    if (i == 0) (shape(i), xCols)
-    else (shape(i), shape(i - 1))
+    if (i == 0) (shape(i), xCols + 1)
+    else (shape(i), shape(i - 1) + 1)
 
   def extractWs(estimates: Vec[Double], xCols: Int): IndexedSeq[Mat[Double]] = {
     (0 until shape.size)
@@ -43,10 +55,11 @@ case class NeuralNetwork(shape: Vector[Int],
   def outputLast(ws: IndexedSeq[Mat[Double]], row: Vec[Double]): Vec[Double] = {
     val penultimate = ws.dropRight(1).foldLeft(row) {
       case (last, w) =>
-        val a = w mv last
-        a.map(logistic)
+        val a = w mv Vec(1d).concat(last)
+        a.map(activation)
     }
-    (ws.last mv penultimate) // apply last layer's activation, specific to regression ToDO
+
+    (ws.last mv Vec(1d).concat(penultimate)) // apply last layer's activation, specific to regression ToDO
   }
 
   def apply[T: MatOps](b: Vec[Double],
@@ -87,46 +100,34 @@ case class NeuralNetwork(shape: Vector[Int],
     /* forward */
     ws.zipWithIndex.foreach {
       case (w, i) =>
-        val a = w mv outputs.last
-        val o = if (i == ws.size - 1) a else a map logistic
-
+        val a = w mv Vec(1d).concat(outputs.last)
+        val o = if (i == ws.size - 1) a else a map activation
         inputs.append(a)
         outputs.append(o)
     }
     /* backward */
     val dT = outputs.last.map(_ - y) // regression specific stuff here
     val dts = scala.collection.mutable.ArrayBuffer[Vec[Double]](dT)
-    val shape1 = row.length +: shape
+    val shape1 = (row.length) +: shape
     val T = shape1.size - 1
     var t = T - 1
     while (t > 0) {
       val w = ws(t)
       val sa = {
         val i = inputs(t + 1)
-        if (t == T - 1) i else i.map(logisticPrime)
+        if (t == T - 1) i.map(x => 1d) else i.map(activationPrime)
       }
+
       val wd = w.mDiagFromLeft(sa)
       val dt = (Mat(dts.last).T mm wd).row(0)
-      // val kt = shape1(t - 1)
-      // var i = 0
-      // val buf = Array.ofDim[Double](kt)
-      // while (i < kt) {
-      //   var sum = 0d
-      //   var j = 0
-      //   val ktp1 = shape1(t)
-      //   while (j < ktp1) {
-      //     sum += ws(t - 1).raw(j, i) * dts.last.raw(j) * logisticPrime(
-      //       inputs(t).raw(j))
-      //     j += 1
-      //   }
-      //   buf(i) = sum
-      //   i += 1
-      // }
-      dts.append(dt)
+
+      dts.append(dt(1 -> *))
+
       t -= 1
     }
     dts.append(Vec[Double]()) //placeholder
     val dtsR = dts.reverse
+
     val jac = Array.ofDim[Double](ws.map(x => x.numRows * x.numCols).sum)
     t = 1
     var c = 0
@@ -135,13 +136,15 @@ case class NeuralNetwork(shape: Vector[Int],
       var I = shape1(t)
       while (i < I) {
         var j = 0
-        var J = shape1(t - 1)
+        var J = shape1(t - 1) + 1
         while (j < J) {
           val actP =
-            if (t == T - 1) 1d //inputs(t).raw(i) // regression, last layer
-            else logisticPrime(inputs(t).raw(i))
+            if (t == T) 1d // regression, last layer
+            else activationPrime(inputs(t).raw(i))
 
-          val dp = dtsR(t).raw(i) * actP * outputs(t - 1).raw(j)
+          val dp = dtsR(t).raw(i) *
+              actP *
+              (if (j == 0) 1d else outputs(t - 1).raw(j - 1))
           jac(c) = dp
           c += 1
           j += 1
@@ -150,6 +153,7 @@ case class NeuralNetwork(shape: Vector[Int],
       }
       t += 1
     }
+    // println((jac: Vec[Double]))
     (jac: Vec[Double])
   }
 
@@ -185,7 +189,7 @@ case class NeuralNetwork(shape: Vector[Int],
       val (a, b) = shapeW(i, cols); a * b
     } sum
 
-    0 until size map (i => rng.nextDouble) toVec
+    0 until size map (i => rng.nextDouble / 1000) toVec
   }
 
   def adaptParameterNames(s: Seq[String]): Seq[String] =

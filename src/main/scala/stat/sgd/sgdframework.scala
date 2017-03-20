@@ -39,6 +39,28 @@ case class StopAfterFixedIterations(i: Int) extends StoppingCriterion {
   def continue[I](s: Step[I]): Boolean = s.count < i
 }
 
+case class TrainingStall(i: Int, eps: Double) extends StoppingCriterion {
+  var max: Double = Double.NegativeInfinity
+  var maxi: Int = 0
+  var c = 0
+  def continue[I](s: Step[I]): Boolean = {
+    c += 1
+    val v = s.validationErrorPerSample.getOrElse(s.penalizedObjectivePerSample)
+    if (math.abs(v) < eps) false
+    else {
+      if (v > max) {
+        max = v
+        maxi = c
+        true
+      } else {
+        if (c - maxi >= i) false
+        else true
+      }
+    }
+  }
+
+}
+
 case class Step[I](state: I,
                    penalizedObjectivePerSample: Double,
                    validationErrorPerSample: Option[Double],
@@ -148,6 +170,37 @@ case class SgdResultWithErrors[E, P](
 
 object Sgd extends StrictLogging {
 
+  def optimizeFrame[RX: ST: ORD, I <: ItState, E, P](
+      data: Frame[RX, String, Double],
+      yKey: String,
+      obj: ObjectiveFunction[E, P],
+      pen: Penalty[_] = L2(0d),
+      upd: Updater[I] = CoordinateDescentUpdater(false),
+      addIntercept: Boolean = true,
+      maxIterations: Int = 100000,
+      minEpochs: Double = 1d,
+      convergedAverage: Int = 50,
+      stop: StoppingCriterion = RelativeStopTraining(1E-6),
+      rng: scala.util.Random = new scala.util.Random(42),
+      kernel: FeatureMap = IdentityFeatureMap,
+      normalize: Boolean = true,
+      batchSize: Option[Int] = None
+  ) =
+    optimize(data,
+             yKey,
+             obj,
+             pen,
+             upd,
+             addIntercept,
+             maxIterations,
+             minEpochs,
+             convergedAverage,
+             stop,
+             rng,
+             kernel,
+             normalize,
+             batchSize)
+
   def optimize[RX: ST: ORD, I <: ItState, E, P](
       f: Frame[RX, String, Double],
       yKey: String,
@@ -161,7 +214,8 @@ object Sgd extends StrictLogging {
       stop: StoppingCriterion = RelativeStopTraining(1E-6),
       rng: scala.util.Random = new scala.util.Random(42),
       kernel: FeatureMap = IdentityFeatureMap,
-      normalize: Boolean = true
+      normalize: Boolean = true,
+      batchSize: Option[Int] = None
   ): Option[NamedSgdResult[E, P]] = {
     val (x, y, std) =
       createDesignMatrix(f, yKey, addIntercept)
@@ -180,7 +234,7 @@ object Sgd extends StrictLogging {
              minEpochs,
              convergedAverage,
              stop,
-             f.numRows,
+             batchSize.getOrElse(f.numRows),
              rng,
              normalize,
              None).map { result =>
@@ -277,6 +331,7 @@ object Sgd extends StrictLogging {
         tail: Int): Option[(Vec[Double], Double, Option[(Double, E)])] = {
 
       val lastIterationSteps: Seq[Step[I]] = {
+        // keeping pre with span leaks memory (accumulates all steps)
         val (pre, suf) = iterationStream.takeWhile { x =>
           val nan = x.penalizedObjectivePerSample.isNaN
           if (nan) {
@@ -440,7 +495,18 @@ object Sgd extends StrictLogging {
       val batch = if (firstBatch.full) firstBatch else Batch(data.next, kernel)
       val start1 = start.getOrElse(obj.start(batch.x.numCols))
 
+      logger.trace(
+        "Start state: {}",
+        start1
+      )
+
       val firstStep = updater.next(start1, batch, obj, pen, None)
+
+      logger.trace(
+        "{}. Active: {}",
+        firstStep,
+        firstStep.point.countif(_ != 0d)
+      )
 
       val currentValidationErrorPerSample =
         validationBatchWithFeatureMap.map(b =>

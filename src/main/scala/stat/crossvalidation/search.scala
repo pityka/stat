@@ -30,7 +30,8 @@ trait HyperParameterSearch[H, K] {
   def apply[E, R](
       idx: Vec[Int],
       t: Train[E, H, R, K],
-      split: CVSplit
+      split: CVSplit,
+      warmStart: Boolean
   ): Option[(HyperParameter[H, K], Option[Vec[Double]])]
 }
 
@@ -63,7 +64,8 @@ object HyperParameterSearch {
       def apply[E, R](
           idx: Vec[Int],
           trainer: Train[E, PH, R, KH],
-          split: CVSplit
+          split: CVSplit,
+          warmStart: Boolean
       ): Option[(HyperParameter[PH, KH], Option[Vec[Double]])] = {
 
         val candidates = penalty.gen(n) zip kernel.gen(n) map (x =>
@@ -73,22 +75,24 @@ object HyperParameterSearch {
 
         logger.debug("Warming up: hyper - {}", candidates.head)
         val start: Option[Vec[Double]] =
-          trainer.train(idx, candidates.head, None, None).map { result =>
-            trainer.eval(result).estimatesV
-          }
+          if (warmStart)
+            trainer.train(idx, candidates.head, None, None).map { result =>
+              trainer.eval(result).estimatesV
+            } else None
 
         val means = {
 
           candidates.map { c =>
-            logger.debug("trainOnTestEvalOnHoldout - hyper: {} - size: {}",
-                         c,
-                         idx.length)
+            logger.debug(
+              "calling trainOnTestEvalOnHoldout - hyper: {} - size: {}",
+              c,
+              idx.length)
 
             val r: Vec[Double] =
               trainOnTestEvalOnHoldout(idx, trainer, split, c, start).toSeq.toVec
                 .map(_._1.unpenalizedObjectivePerSample)
 
-            val rmean = if (r.count > 1) Some(r.mean) else None
+            val rmean = if (r.count > 0) Some(r.mean) else None
 
             logger.debug("HyperParameterSearch. Hyper: {} : mean: {}",
                          c,
