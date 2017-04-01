@@ -7,6 +7,7 @@ import stat.sgd._
 // abstract out hidden activation, last activation
 // regression, multinomial classification
 case class NeuralNetwork(shape: Vector[Int],
+                         dropout: Double = 1d,
                          rng: scala.util.Random = scala.util.Random)
     extends ObjectiveFunction[Double, Double] {
 
@@ -90,20 +91,27 @@ case class NeuralNetwork(shape: Vector[Int],
 
   }
 
+  def dropAndScale(vec: Vec[Double], p: Double) =
+    if (p >= 1.0) vec else vec.map(v => if (rng.nextDouble < p) v / p else 0d)
+
   /* Backpropagation as in Shalev-Schwarz, Ben-David page 237 */
   def jacobiRow(ws: IndexedSeq[Mat[Double]],
                 row: Vec[Double],
                 y: Double): Vec[Double] = {
     val inputs = scala.collection.mutable.ArrayBuffer[Vec[Double]](row)
-    val outputs = scala.collection.mutable.ArrayBuffer[Vec[Double]](row)
+    val outputs = scala.collection.mutable
+      .ArrayBuffer[Vec[Double]](dropAndScale(row, dropout))
 
     /* forward */
     ws.zipWithIndex.foreach {
       case (w, i) =>
         val a = w mv Vec(1d).concat(outputs.last)
         val o = if (i == ws.size - 1) a else a map activation
+        val dropped =
+          if (i == ws.size - 1) o
+          else dropAndScale(o, dropout)
         inputs.append(a)
-        outputs.append(o)
+        outputs.append(dropped)
     }
     /* backward */
     val dT = outputs.last.map(_ - y) // regression specific stuff here
@@ -189,7 +197,7 @@ case class NeuralNetwork(shape: Vector[Int],
       val (a, b) = shapeW(i, cols); a * b
     } sum
 
-    0 until size map (i => rng.nextDouble / 1000) toVec
+    0 until size map (i => rng.nextDouble) toVec
   }
 
   def adaptParameterNames(s: Seq[String]): Seq[String] =

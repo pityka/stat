@@ -338,7 +338,14 @@ object Sgd extends StrictLogging {
             logger.warn("NaN, stopping iteration. Last state: {}", x)
           }
           !nan
-        }.drop(min).take(max).span(x => stop.continue(x))
+        }.drop(min).take(max).span { x =>
+          val cont = stop.continue(x)
+          if (!cont) {
+            logger.debug("Converged {}", x.count)
+          }
+
+          cont
+        }
 
         val tsuf = suf.take(tail).toVector
         val tpre = pre.toVector
@@ -346,8 +353,6 @@ object Sgd extends StrictLogging {
         val lastidx = (tpre ++ tsuf).lastOption.map(_.count)
         if (lastidx.isEmpty) {
           logger.warn("Did not converge.")
-        } else {
-          logger.debug("Converged {}", lastidx.get)
         }
 
         if (validationBatch.isEmpty) tpre.takeRight(tail - tsuf.size) ++ tsuf
@@ -435,6 +440,13 @@ object Sgd extends StrictLogging {
               validationEvalOfAveragedPoint._2,
               trainingErrorOfAveragedPoint
           ))
+
+        if (validationEvalOfAveragedPoint.isEmpty) {
+          logger.debug(
+            "Training obj: {}",
+            trainingErrorOfAveragedPoint
+          )
+        }
 
         Some(
           (averagedPoint,

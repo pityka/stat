@@ -4,7 +4,9 @@ import org.saddle._
 import org.saddle.linalg._
 import stat.matops._
 
-case class RMSPropStep(point: Vec[Double], acc: Vec[Double]) extends ItState
+case class RMSPropStep(point: Vec[Double], acc: Vec[Double]) extends ItState {
+  override def toString = point.toSeq.toString + "\n"
+}
 
 case class RMSPropUpdater(stepSize: Double) extends Updater[RMSPropStep] {
   def next[M: MatOps](b: Vec[Double],

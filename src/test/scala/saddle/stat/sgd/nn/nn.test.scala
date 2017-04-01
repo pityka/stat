@@ -8,7 +8,7 @@ import stat.sgd._
 
 class NeuralNetworkSuite extends FunSpec with Matchers {
   slogging.LoggerConfig.factory = slogging.PrintLoggerFactory()
-  slogging.LoggerConfig.level = slogging.LogLevel.DEBUG
+  slogging.LoggerConfig.level = slogging.LogLevel.TRACE
   val rng = scala.util.Random
 
   describe("extractWs") {
@@ -269,60 +269,68 @@ class NeuralNetworkSuite extends FunSpec with Matchers {
 
     it("non-linear 1") {
 
-      val x1 = vec.randn(200)
-      val x2 = vec.randn(200)
+      val x1 = vec.randp(200)
+      val x2 = vec.randp(200)
       val xor = x1.zipMap(x2)((x, y) => if (x * y > 0) 0d else 1)
-      val y = x1.map(x => math.sin(x * 5))
+      val y = x1.map(x => math.sin(x * 20))
       // val y = xor //(x1 * 3 + x2 * (-2)).map(math.sin) // //(x1 * 3 + x2 * (-2)) * 0d + x1 * x2 * 10 //+ xor * 10
-      val f = Frame("x1" -> x1, "x2" -> x2, "y" -> y)
+      val f = Frame("x1" -> x1, "y" -> y)
       println(f)
       println(f.toMat)
-      // val sgdresult = stat.sgd.Sgd
-      //   .optimizeFrame(
-      //     data = f,
-      //     yKey = "y",
-      //     obj = NeuralNetwork(Vector(100, 10, 1)),
-      //     pen = stat.sgd.L2(0.1d),
-      //     upd = stat.sgd.RMSPropUpdater(0.01),
-      //     addIntercept = false,
-      //     maxIterations = 50000,
-      //     minEpochs = 100d,
-      //     convergedAverage = 1000,
-      //     stop = TrainingStall(5000, 1E-3),
-      //     rng = rng,
-      //     kernel = IdentityFeatureMap,
-      //     normalize = false,
-      //     batchSize = Some(10)
-      //   )
-      //   .get
-
-      val (eval, sgdresult) =
-        stat.sgd.Cv.fitWithCV(
+      val sgdresult = stat.sgd.Sgd
+        .optimizeFrame(
           data = f,
           yKey = "y",
+          obj = NeuralNetwork(Vector(50, 10, 10, 10, 1), 1.0),
+          pen = stat.sgd.L2(0.0d),
+          upd = stat.sgd.RMSPropUpdater(0.005),
           addIntercept = false,
-          obj = NeuralNetwork(Vector(100, 10, 1)),
-          pen = stat.sgd.L2(1d),
-          upd = stat.sgd.RMSPropUpdater(0.01),
-          outerSplit = stat.crossvalidation.Split(0.6, rng),
-          split = stat.crossvalidation.KFold(5, rng, 1),
-          search =
-            stat.crossvalidation.HyperParameterSearch.GridSearch(-6, -3, 5),
-          kernelFactory = IdentityFeatureMapFactory, //RbfFeatureMapFactory(rbfCenters),
-          bootstrapAggregate = None,
           maxIterations = 50000,
-          minEpochs = 100.0,
+          minEpochs = 50d,
           convergedAverage = 1000,
-          batchSize = Some(10),
-          stop = TrainingStall(5000, 1E-3),
+          stop = TrainingStall(5000, 1E-6),
           rng = rng,
+          kernel = IdentityFeatureMap,
           normalize = false,
-          warmStart = true)
-      println(eval)
+          batchSize = Some(200)
+        )
+        .get
+
+      //
+      // val (eval, sgdresult) =
+      //   stat.sgd.Cv.fitWithCV(
+      //     data = f,
+      //     yKey = "y",
+      //     addIntercept = false,
+      //     obj = NeuralNetwork(Vector(200, 1), 1.0),
+      //     pen = stat.sgd.L2(1d),
+      //     upd = stat.sgd.RMSPropUpdater(0.01),
+      //     outerSplit = stat.crossvalidation.Split(0.6, rng),
+      //     split = stat.crossvalidation.KFold(4, rng, 1),
+      //     search =
+      //       stat.crossvalidation.HyperParameterSearch.GridSearch(-8, -3, 5),
+      //     kernelFactory = IdentityFeatureMapFactory, //RbfFeatureMapFactory(rbfCenters),
+      //     bootstrapAggregate = None,
+      //     maxIterations = 50000,
+      //     minEpochs = 100.0,
+      //     convergedAverage = 100,
+      //     batchSize = Some(20),
+      //     stop = TrainingStall(5000, 1E-6),
+      //     rng = rng,
+      //     normalize = false,
+      //     warmStart = true)
+      // println(eval)
 
       val predicted: Vec[Double] =
         sgdresult.predict(f.toMat.col(0, 1))
       println(Frame("pr" -> predicted, "tr" -> y))
+      import org.nspl._
+      import org.nspl.awtrenderer._
+      import org.nspl.saddle._
+      show(
+        xyplot(
+          Frame("x" -> x1, "pr" -> predicted),
+          x1.toSeq.map(x => x -> math.sin(x * 20)).sortBy(_._1) -> line())())
 
       println(sgdresult)
 

@@ -32,11 +32,10 @@ object Train {
         ).flatMap {
           case (opt, start) =>
             logger.debug(
-              "Retraining with optimal hyperparameter: {}, using warm start: {}",
+              "Retraining with optimal hyperparameter: {}, not using warm start. Samples: {}",
               opt,
-              warmStart)
-            t.train(idx, opt, None, if (warmStart) start else None)
-              .map(r => (t.eval(r), opt))
+              idx.length)
+            t.train(idx, opt, None, None).map(r => (t.eval(r), opt))
         }
       }
     }
@@ -71,7 +70,7 @@ case class SplitTakeIndex(idx: Array[Int]) extends CVSplit {
   }
 }
 
-case class KFold(folds: Int, rng: Random, replica: Int) extends CVSplit {
+case class KFold(folds: Int, rng: Random, replica: Int = 1) extends CVSplit {
   def generate(d: Vec[Int]): Iterator[(Vec[Int], Vec[Int])] = {
     val indices = (0 until d.length).toVector
     (1 to replica iterator) flatMap { r =>
