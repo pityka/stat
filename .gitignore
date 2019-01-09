@@ -1,2 +1,7 @@
 target
 lib/
+*pdf
+pred*csv
+*json
+*hs_err*
+TODO
