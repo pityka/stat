@@ -7,7 +7,7 @@ import slogging.StrictLogging
 import stat.matops._
 import stat.io.upicklers._
 import upickle.default._
-import upickle.Js
+import ujson.Js
 import stat.rbf.RadialBasisFunctions._
 
 trait FeatureMapFactory[H] {
@@ -23,7 +23,14 @@ sealed trait FeatureMap {
   def applyPenalizationMask(v: Vec[Double]): Vec[Double]
 }
 
-object IdentityFeatureMap extends FeatureMap {
+object FeatureMap {
+   import upickle.default._
+   implicit val readWriter: ReadWriter[FeatureMap] = ReadWriter.merge(
+    macroRW[IdentityFeatureMap.type], macroRW[RbfFeatureMap]
+  )
+}
+
+case object IdentityFeatureMap extends FeatureMap {
   def applyMat[T: MatOps](b: T): T = b
   def applyPenalizationMask(v: Vec[Double]): Vec[Double] = v
 }

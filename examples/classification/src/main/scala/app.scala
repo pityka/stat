@@ -335,6 +335,7 @@ object ClassificationExample extends App {
     batchSize = None,
     stop = RelativeStopTraining(1E-5),
     rng,
+    true,
     true
   )
 

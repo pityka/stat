@@ -11,7 +11,7 @@ object QQUniform {
   def writeQQPlot(fileName: String, pValues: Iterator[Double]): Unit =
     pngToFile(
       new java.io.File(fileName),
-      plot(pValues),
+      plot(pValues).build,
       1000
     )
 
@@ -26,7 +26,7 @@ object QQUniform {
   def plot(pvalues: Iterator[Double],
            disablePruning: Boolean = false,
            minimum: Option[Double] = None,
-           maximum: Option[Double] = None): XYPlot = {
+           maximum: Option[Double] = None) = {
 
     if (pvalues.hasNext) {
 

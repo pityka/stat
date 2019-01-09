@@ -401,7 +401,7 @@ object RegressionExample extends App {
           .col(variable, "SalePrice_pred")
           .sortedRowsBy(_.first(variable))
           -> line(color = Color.red)
-      )(xlab = variable, axisMargin = 0.1),
+      )(xlab = variable, xAxisMargin = 0.1).build,
       1000)
   }
 
@@ -428,6 +428,7 @@ object RegressionExample extends App {
     batchSize = None,
     stop = RelativeStopTraining(1E-6),
     rng,
+    true,
     true
   )
 
@@ -480,7 +481,7 @@ object RegressionExample extends App {
                 .map {
                   case (id, s) =>
                     (s.toVec.raw(0) -> s.toVec.raw(1))
-                })(draw1Line = true),
+                })(draw1Line = true).build,
             1000)
 
   //           val joinedWithPredicted =

@@ -55,7 +55,7 @@ class RBFSuite extends FunSuite {
         (data1.col("x", "y").sortedRowsBy(_.first("x")),
          List(line(color = Color.red)),
          InLegend("orig"))
-      )(axisMargin = 0.1)
+      )(xAxisMargin = 0.1)
     )
   }
 }

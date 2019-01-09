@@ -7,7 +7,7 @@ import slogging.StrictLogging
 import stat.matops._
 import stat.io.upicklers._
 import upickle.default._
-import upickle.Js
+import ujson.Js
 
 trait StoppingCriterion {
   def continue[I](s: Step[I]): Boolean
@@ -153,14 +153,16 @@ case class NamedSgdResult[E, P](
 }
 
 object NamedSgdResult {
+ 
+  implicit def readwriter[E, P](implicit rw1: ReadWriter[Index[String]]): ReadWriter[NamedSgdResult[E, P]] = {
+    implicit val tmp = macroRW[SgdResult[E,P]]
+    macroRW[NamedSgdResult[E,P]]
+  }
+    
 
-  def writer[E, P]: Writer[NamedSgdResult[E, P]] =
-    implicitly[upickle.default.Writer[NamedSgdResult[E, P]]]
-
-  def write(x: NamedSgdResult[_, _]) = upickle.json.write(writer.write(x))
+  def write(x: NamedSgdResult[_, _]) = upickle.default.write(x)
   def read[E, P](s: String) =
-    implicitly[upickle.default.Reader[NamedSgdResult[E, P]]]
-      .read(upickle.json.read(s))
+    upickle.default.read[NamedSgdResult[E,P]](s)
 }
 
 case class SgdResultWithErrors[E, P](
