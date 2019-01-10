@@ -4,7 +4,7 @@ name := "stat"
 
 organization := "io.github.pityka"
 
-version := "0.0.9"
+version := "0.0.10-SNAPSHOT"
 
 libraryDependencies ++= Seq(
   "io.github.pityka" %% "saddle-linalg" % "0.0.23",
