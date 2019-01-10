@@ -82,19 +82,21 @@ object QQUniform {
             // https://en.wikipedia.org/wiki/Order_statistic
             // the kth order statistic of the uniform distribution is a Beta random variable.[2][3]
             // ~ Beta(k,n+1-k).
+            val k = i+1
             Some(
               (expected,
                -1 * math.log10(head),
                -1 * math.log10(
-                 jdistlib.Beta.quantile(0.05, i, total + 1 - i, true, false)),
+                 jdistlib.Beta.quantile(0.05, k, total + 1 - k, true, false)),
                -1 * math.log10(
-                 jdistlib.Beta.quantile(0.95, i, total + 1 - i, true, false)))
+                 jdistlib.Beta.quantile(0.95, k, total + 1 - k, true, false)))
             )
           } else None
         }
 
         (lambda, data, d99, d100, expectedMax, last100)
       }
+
 
       val first99percentLineData: DataSource = Seq(
         (0.0, -1 * math.log10(first99percentLineEnd)),
@@ -110,24 +112,26 @@ object QQUniform {
       val plot = xyplot(
         List(
           data -> List(
-            line(xCol = 0, yCol = 2),
-            line(xCol = 0, yCol = 3),
+            line(xCol = 0, yCol = 3, color = Color.gray5, stroke = Stroke(1d)),
+            line(xCol = 0, yCol = 2, color = Color.gray5, stroke = Stroke(1d)),
             point(xCol = 0,
                   yCol = 1,
-                  size = 2f,
+                  size = 1.5f,
                   colorCol = 10,
                   sizeCol = 10,
                   shapeCol = 10)
           ),
-          first99percentLineData -> List(line())
-        ) ++ last100LineData.map(x => x -> List(line())): _*
+          first99percentLineData -> List(line(color = Color.red, stroke = Stroke(1d)))
+        ) ++ last100LineData.map(x => x -> List(line(color = Color.blue, stroke = Stroke(1d)))): _*
       )(
         draw1Line = true,
         main = "lambda: " + lambda.toString,
         xlab = "Expected -log10 p-values",
         ylab = "Observed -log10 p-values",
         xgrid = false,
-        ygrid = false
+        ygrid = false,
+        xAxisMargin = 0,
+        yAxisMargin = 0
       )
 
       plot
