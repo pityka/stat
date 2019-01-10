@@ -63,6 +63,8 @@ case class NamedLinearRegressionResult[I](
     }
   }
 
+  def externallyStudentizedResiduals = raw.externallyStudentizedResiduals
+
 }
 
 object LinearRegression {
