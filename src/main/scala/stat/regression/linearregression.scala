@@ -13,7 +13,8 @@ case class LinearRegressionResult(
     df: Double,
     lambda: Double,
     adjR2: Double,
-    numberOfSamples: Int
+    numberOfSamples: Int,
+    externallyStudentizedResiduals : Vec[Double]
 )
 
 case class NamedLinearRegressionResult[I](
@@ -53,6 +54,14 @@ case class NamedLinearRegressionResult[I](
   }
 
   def intercept = covariates("intercept")
+
+  def outlierPValues = {
+    val df = numberOfSamples - betas.length  -1 
+    externallyStudentizedResiduals.map{ residual =>
+      2 *jdistlib.T
+            .cumulative(math.abs(residual), df.toDouble, false, false)
+    }
+  }
 
 }
 
@@ -95,17 +104,22 @@ object LinearRegression {
 
     val XtX = X.innerM
 
-    val XtXplusLambdaIInverse =
-      if (shrinkage == 0.0) XtX.invertPD.get
+    val (xtXplusLambdaIInverse, xtXplusLambdaI) =
+      if (shrinkage == 0.0) (XtX.invertPD.get,XtX)
       else
-        (XtX + (mat.diag(penalizationWeights) * shrinkage)).invert
+        {
+          val a  =(XtX + (mat.diag(penalizationWeights) * shrinkage))
+
+          (a.invert,a)
+        }
 
     val XTmultY = X.tmm(Y)
 
     linearRegressionSecondPart(X,
                                Some(XtX),
                                XTmultY,
-                               XtXplusLambdaIInverse,
+                               xtXplusLambdaIInverse,
+                               xtXplusLambdaI,
                                y,
                                X.numRows,
                                X.numCols,
@@ -117,6 +131,7 @@ object LinearRegression {
                                          XtX: Option[Mat[Double]],
                                          XTmultY: Mat[Double],
                                          XtXplusLambdaIInverse: Mat[Double],
+                                         XtXplusLambdaI: Mat[Double],
                                          y: Vec[Double],
                                          numSamples: Int,
                                          numParameters: Int,
@@ -138,10 +153,14 @@ object LinearRegression {
         XtXplusLambdaIInverse.mm(XtX.get).mm(XtXplusLambdaIInverse) * sigma2
       }
 
+    // diagonal of the Hat matrix
+    // H = X inv(X'X) X'
+    val leverages = XtXplusLambdaI.diagInverseSandwich(X).get
+
     val df =
       if (shrinkage == 0.0) numParameters + 1.0
       else
-        X.mm(XtXplusLambdaIInverse).mmt(X).trace
+        leverages.sum
 
     val totalSS = {
       val d = y - y.mean
@@ -155,6 +174,12 @@ object LinearRegression {
     val paramsds = variances.diag.map(math.sqrt)
 
     val residuals = error.col(0)
+
+    val externallyStudentizedResiduals = residuals.zipMap(leverages){
+      case (residual,leverage) =>
+      val correctedSigma2 = (1d / (numSamples - numParameters - 1)) * (RSS - residual * residual) 
+      residual / (math.sqrt(correctedSigma2 * (1d - leverage)) )
+    }
 
     val adjr2 = {
       val n = residuals.length.toDouble
@@ -185,7 +210,8 @@ object LinearRegression {
       df = df,
       lambda = shrinkage,
       adjR2 = adjr2,
-      numberOfSamples = X.numRows
+      numberOfSamples = X.numRows,
+      externallyStudentizedResiduals = externallyStudentizedResiduals
     )
 
   }
