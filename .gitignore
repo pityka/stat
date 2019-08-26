@@ -5,3 +5,5 @@ pred*csv
 *json
 *hs_err*
 TODO
+.bloop/
+.metals/
