@@ -1,4 +1,4 @@
-scalaVersion := "2.12.8"
+scalaVersion := "2.12.9"
 
 name := "stat"
 
@@ -30,7 +30,7 @@ lazy val example1 = project
       "io.github.pityka" %% "fileutils" % "1.2.2",
       "com.lihaoyi" %% "upickle" % "0.7.1"
     ),
-    scalaVersion := "2.12.8"
+    scalaVersion := "2.12.9"
   )
   .dependsOn(root)
 
@@ -42,7 +42,7 @@ lazy val example2 = project
       "io.github.pityka" %% "fileutils" % "1.2.2",
       "com.lihaoyi" %% "upickle" % "0.7.1"
     ),
-    scalaVersion := "2.12.8"
+    scalaVersion := "2.12.9"
   )
   .dependsOn(root)
 
