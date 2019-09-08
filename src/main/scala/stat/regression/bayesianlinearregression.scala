@@ -36,13 +36,11 @@ def bayesianLinearRegression(
     val bN = ((Y.innerM - Mat(wN).tmm(VNInverse).mm(Mat(wN))) * 0.5).raw(0,0)
     
     val dof = 2*aN 
-    val estimatorCovariances = {
-      VN * (dof/(dof-2d) * bN/aN) 
-    }
-    def estimatorMeans = wN 
-    val estimatorVariances = estimatorCovariances.diag 
+    val estimatorMeans = wN 
+    val estimatorShape = VN * bN/aN
+    val estimatorVariances = (estimatorShape * (dof/(dof-2d))).diag 
     def estimatorInverseCDF(p: Double) = 
-      wN.zipMap(estimatorVariances){ case (w,va) =>
+      wN.zipMap(estimatorShape.diag){ case (w,va) =>
         val standardQuantile = jdistlib.T.quantile(p,dof,true,false)
         standardQuantile*math.sqrt(va)+w
       }
@@ -50,17 +48,18 @@ def bayesianLinearRegression(
     def prediction(M:Mat[Double]) = {
       val m = M.mv(wN)
       val unit = mat.diag(vec.ones(M.numRows))
-      val v = (unit + M.mm(VN.mmt(M))) * bN/aN 
+      val v = (unit + M.mm(VN.mmt(M))) 
       new PosteriorPredictive {
         val mean = m
-        val covariances = v 
+        val covariances = v * bN/aN * (dof/(dof-2))
         val variances = covariances.diag.col(0)
-        def inverseCDF(p: Double) = mean.zipMap(variances){ case (m1,v1) =>
+        val shape = v * bN/aN 
+        def inverseCDF(p: Double) = mean.zipMap((v * bN/aN).diag.col(0)){ case (m1,v1) =>
           val standardQuantile = jdistlib.T.quantile(p,dof,true,false)
           standardQuantile*math.sqrt(v1) + m1
         }
       }
     }
-
+    (dof,estimatorMeans,estimatorShape, estimatorVariances, prediction _)
   }
 }

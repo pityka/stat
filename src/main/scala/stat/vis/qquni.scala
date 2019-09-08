@@ -23,6 +23,14 @@ object QQUniform {
 
     (((maximum - minimum) * 0.5) + minimum) / medianObserved
   }
+
+  def computeQQError(observed: Seq[Double]) = {
+    val N = observed.size
+    val Nd = N.toDouble
+    val expected = 1 to N map {i => i/Nd}
+    (observed.sorted zip expected map { case (i,j)=> (i-j)*(i-j)} sum) / Nd
+  }
+
   def plot(pvalues: Iterator[Double],
            disablePruning: Boolean = false,
            minimum: Option[Double] = None,
