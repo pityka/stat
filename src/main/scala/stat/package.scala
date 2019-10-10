@@ -22,15 +22,10 @@ package object stat {
       ab.toArray
     }
 
-    val nanidx = findNA(v1) ++ findNA(v2)
+    val nanidx = findNA(v1.toArray) ++ findNA(v2.toArray)
     val v1wonan = v1.without(nanidx)
     val v2wonan = v2.without(nanidx)
-    val v1dem = v1wonan.demeaned
-    val v2dem = v2wonan.demeaned
-    val v1s = v1dem.stdev
-    val v2s = v2dem.stdev
-    val cov = v1dem vv v2dem * (1d / (v1dem.length - 1))
-    cov / (v1s * v2s)
+    v1wonan.pearson(v2wonan)
   }
 
 }

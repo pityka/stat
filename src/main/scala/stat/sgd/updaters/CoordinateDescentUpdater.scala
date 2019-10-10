@@ -71,12 +71,12 @@ case class CoordinateDescentUpdater(doActiveSet: Boolean = false)
         last.map(x => x.activeSet < 100).getOrElse(false)
 
     // mutated
-    val xmvb: Array[Double] = batch.x mv x
+    val xmvb: Array[Double] = (batch.x mv x).toArray
 
     // mutated
     val x2: Array[Double] = {
       val ar = Array.ofDim[Double](x.length)
-      System.arraycopy((x: Array[Double]), 0, ar, 0, x.length)
+      System.arraycopy(x.toArray, 0, ar, 0, x.length)
       ar
     }
 
@@ -91,7 +91,7 @@ case class CoordinateDescentUpdater(doActiveSet: Boolean = false)
     while (k < N) {
       val i = coordinates.raw(k)
 
-      val v = updateCoordinate(i, x2, xmvb)
+      val v = updateCoordinate(i, x2.toVec, xmvb.toVec)
       val oldV = x2(i)
       var j = 0
       val n = xmvb.size
@@ -107,7 +107,7 @@ case class CoordinateDescentUpdater(doActiveSet: Boolean = false)
     val activeSetCounter =
       if (!activeSetMode) 0 else last.map(_.activeSet + 1).getOrElse(0)
 
-    CDState(x2, hessianDiag, activeSetCounter, work)
+    CDState(x2.toVec, hessianDiag, activeSetCounter, work)
 
   }
 }

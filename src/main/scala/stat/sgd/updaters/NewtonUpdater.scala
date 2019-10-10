@@ -22,7 +22,7 @@ object NewtonUpdater extends Updater[Iteration] {
         .map(_ * (-1))
         .getOrElse(h.invertPD.getOrElse(h.invert))
 
-    val next = b - (hinv mm j).col(0)
+    val next = b - (hinv mv j)
 
     // val jacobisum =
     //   (obj.jacobi(next, batch) - pen.jacobi(next, penalizationMask))

@@ -30,7 +30,7 @@ case class MultinomialLogisticRegression(numberOfClasses: Int)
     ???
 
   def adaptPenalizationMask[T](batch: Batch[T]): Vec[Double] =
-    mat.repeat(batch.penalizationMask, C).contents
+    mat.repeat(batch.penalizationMask.toArray, C).toVec
 
   def adaptParameterNames(s: Seq[String]): Seq[String] = s.flatMap { s =>
     1 until numberOfClasses map { c =>
@@ -96,11 +96,11 @@ case class MultinomialLogisticRegression(numberOfClasses: Int)
         i += 1
       }
 
-      val t = y1 - (pi: Vec[Double])
+      val t = y1 - Vec(pi)
 
       (batch.x tmv t)
 
-    }): _*).contents
+    }): _*).toVec
 
   }
 
@@ -341,7 +341,7 @@ case class MultinomialLogisticRegression(numberOfClasses: Int)
     }
 
     val accuracy =
-      hard.zipMap(batch.y)((p, y) => if (p == y) 1.0 else 0.0).mean
+      hard.zipMap(batch.y)((p, y) => if (p == y) 1.0 else 0.0).mean2
 
     def tp(yval: Double) =
       hard

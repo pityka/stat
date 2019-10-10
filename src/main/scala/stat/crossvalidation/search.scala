@@ -1,6 +1,7 @@
 package stat.crossvalidation
 
 import org.saddle._
+import org.saddle.linalg._
 import scala.util.Random
 import stat.sgd.EvaluateFit
 import slogging.StrictLogging
@@ -92,7 +93,7 @@ object HyperParameterSearch {
               trainOnTestEvalOnHoldout(idx, trainer, split, c, start).toSeq.toVec
                 .map(_._1.unpenalizedObjectivePerSample)
 
-            val rmean = if (r.count > 0) Some(r.mean) else None
+            val rmean = if (r.count > 0) Some(r.mean2) else None
 
             logger.debug("HyperParameterSearch. Hyper: {} : mean: {}",
                          c,

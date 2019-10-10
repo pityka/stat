@@ -55,7 +55,7 @@ trait DataSourceFactories extends StrictLogging {
 
       def stdev(t: MatrixData): Vec[Double] =
         t.trainingX.cols
-          .map(_.stdev)
+          .map(_.sampleStandardDeviation)
           .map(x => if (x == 0.0) 1.0 else 1d / x)
           .toVec
 
@@ -137,7 +137,7 @@ trait DataSourceFactories extends StrictLogging {
       stat.regression.createDesignMatrix(f, addIntercept)
 
     val x = data2.filterIx(_ != yKey)
-    (x.toMat, data2.firstCol(yKey).toVec, x.stdev.toVec)
+    (x.toMat, data2.firstCol(yKey).toVec, x.reduce(_.toVec.sampleStandardDeviation).toVec)
   }
 
   implicit def sparseMatrixDataSource =

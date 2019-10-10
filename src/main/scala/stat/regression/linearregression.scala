@@ -85,7 +85,7 @@ object LinearRegression {
       y = data2.firstCol(yKey).toVec,
       shrinkage = lambda,
       penalizationWeights =
-        data2.filterIx(_ != yKey).stdev.toVec.map(x => 1.0 / x)
+        data2.filterIx(_ != yKey).reduce(v => math.sqrt(v.toVec.sampleVariance)).toVec.map(x => 1.0 / x)
     )
 
     NamedLinearRegressionResult(data2.colIx.toSeq.filter(_ != yKey).toIndex,
@@ -143,7 +143,7 @@ object LinearRegression {
 
     val predicted: Vec[Double] = X.mm(estimator).col(0)
 
-    val error: Vec[Double] = (y - predicted).col(0)
+    val error: Vec[Double] = (y - predicted)
 
     val RSS = error dot error
 
@@ -165,7 +165,7 @@ object LinearRegression {
         leverages.sum
 
     val totalSS = {
-      val d = y - y.mean
+      val d = y.demeaned
       d dot d
     }
 
@@ -175,7 +175,7 @@ object LinearRegression {
 
     val paramsds = variances.diag.map(math.sqrt)
 
-    val residuals = error.col(0)
+    val residuals = error
 
     val externallyStudentizedResiduals = residuals.zipMap(leverages){
       case (residual,leverage) =>

@@ -7,7 +7,7 @@ import stat._
 class LogRegSuite extends FunSuite {
   test("1") {
     val y: Vec[Double] =
-      array.linspace(-1d, 1d).map(v => if (v > 0.0) 1.0 else 0.0)
+      array.linspace(-1d, 1d).map(v => if (v > 0.0) 1.0 else 0.0).toVec
     val x: Vec[Double] = Vec(-0.042225672555113176,
                              -0.4454131082238157,
                              -0.8621926316533379,

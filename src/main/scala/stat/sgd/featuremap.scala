@@ -52,7 +52,7 @@ case class RbfFeatureMap(centers: Seq[(Vec[Double], Double)])
     def makeRow(data: top.V,
                 centers: Seq[(Vec[Double], Double, Double)]): top.V =
       top.vops.fromElems((1d +: centers.map(center =>
-        gaussian(center._2)(euclid(center._1, data, center._3)))).toVec)
+        gaussian(center._2)(euclid(center._1, data, center._3)))).toVec.toArray)
 
     val centersWithInner = centers.map(x => (x._1, x._2, x._1 vv x._1))
 

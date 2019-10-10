@@ -40,7 +40,7 @@ package object sparse {
   def colmeans(t: SMat): Vec[Double] = {
     val sums = new Array[Double](t.head.length)
     colmeans(t, sums)
-    val means: Vec[Double] = (sums: Vec[Double])
+    val means: Vec[Double] = sums.toVec
     // SVec(Series(means).filter(_ != 0d), means.length)
     means
   }

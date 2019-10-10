@@ -3,7 +3,7 @@ package stat.sgd
 import org.saddle._
 import org.scalatest._
 import stat._
-import org.saddle.io._
+import org.saddle.csv._
 
 class MultinomialLogisticSuite extends FunSpec with Matchers {
   slogging.LoggerConfig.factory = slogging.PrintLoggerFactory()
@@ -11,7 +11,7 @@ class MultinomialLogisticSuite extends FunSpec with Matchers {
 
   describe("small multinomial, R") {
     val frame = CsvParser
-      .parse(CsvFile(getClass.getResource("/").getPath + "/example.csv"))
+    .parse(scala.io.Source.fromFile(getClass.getResource("/").getPath + "/example.csv").getLines)
       .withColIndex(0)
       .withRowIndex(0)
       .mapValues(_.toDouble)
@@ -75,7 +75,7 @@ class MultinomialLogisticSuite extends FunSpec with Matchers {
   describe("multinomial logistic regression sgd, logistic case (2 classes)") {
 
     val frame = CsvParser
-      .parse(CsvFile(getClass.getResource("/").getPath + "/example.csv"))
+      .parse(scala.io.Source.fromFile(getClass.getResource("/").getPath + "/example.csv").getLines)
       .withColIndex(0)
       .withRowIndex(0)
       .mapValues(_.toDouble)

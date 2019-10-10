@@ -1,6 +1,7 @@
 package stat.matops
 
 import org.saddle._
+import org.saddle.linalg._
 
 object DenseVecOps extends VecOps[Vec[Double]] {
   type T = Vec[Double]
@@ -8,7 +9,7 @@ object DenseVecOps extends VecOps[Vec[Double]] {
   def length(t: T): Int = t.length
   def vv(t: T, t2: T): Double = t vv t2
   def vv2(t: T, t2: T): Double = vv(t, t2)
-  def fromElems(s: Array[Double]): Vec[Double] = s
+  def fromElems(s: Array[Double]): Vec[Double] = Vec(s)
   def euclid(t: T, t2: Vec[Double], t2inner: Double): Double = {
     val t3 = t2 - t
     math.sqrt(t3 vv t3)

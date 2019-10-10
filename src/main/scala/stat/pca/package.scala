@@ -8,14 +8,15 @@ import org.nspl.saddle._
 import org.nspl.data._
 
 package object pca {
-
+/* Does not standardize! */ 
   def fromData[RX: ORD: ST, CX: ORD: ST](
       data: Frame[RX, CX, Double],
       max: Int
   ): PCA[RX, CX] = {
-    val demeaned = data.demeaned.mapVec(v => v / v.stdev).toMat
-    val nonZero = demeaned.singularValues(max).countif(_ > 1E-4)
-    val SVDResult(u, sigma, vt) = data.demeaned.toMat.svd(nonZero)
+    val demeaned = data.mapVec(_.demeaned)
+    val standardized = demeaned.mapVec(v => v / math.sqrt(v.sampleVariance)).toMat
+    val nonZero = standardized.singularValues(max).countif(_ > 1E-4)
+    val SVDResult(u, sigma, vt) = demeaned.toMat.svd(nonZero)
 
     val sigmaPos = sigma.filter(_ > 1E-4)
 
@@ -71,7 +72,7 @@ package object pca {
           Series(project.rowIx.toSeq.map { rx =>
             rx -> (groups
               .first(rx)
-              .flatMap(rx => colorValues.get(rx))
+              .flatMap(rx => colorValues.get(rx).toScalar)
               .map(_ + 1d)
               .getOrElse(0d))
           }: _*)

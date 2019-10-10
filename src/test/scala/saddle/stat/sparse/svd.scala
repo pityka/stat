@@ -51,7 +51,7 @@ class SVDSuite extends FunSuite {
     val eig = (Eigen.eigenDecompositionSymmetric(sm, 2)(SparseMatOps))
 
     assert(eig.q.roundTo(3) == Mat(Vec(0.707, 0.707), Vec(-0.707, 0.707)))
-    assert(eig.lambdaReal.roundTo(2).toVec == Vec(4d, -2d))
+    assert(eig.lambdaReal.roundTo(2) == Vec(4d, -2d))
 
   }
 }

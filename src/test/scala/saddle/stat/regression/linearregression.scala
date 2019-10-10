@@ -6,7 +6,7 @@ import stat._
 
 class LMSuite extends FunSuite {
   test("1") {
-    val y: Vec[Double] = array.linspace(-1d, 1d)
+    val y: Vec[Double] = array.linspace(-1d, 1d).toVec
     val data = Frame(
       Mat(y + 5d, y * y * y),
       Index(0 until 50: _*),
@@ -19,7 +19,7 @@ class LMSuite extends FunSuite {
         7))
   }
     test("2") {
-    val y: Vec[Double] = array.linspace(-10d, 10d, 150)
+    val y: Vec[Double] = array.linspace(-10d, 10d, 150).toVec
     val data = Frame(
       Mat(y*3 +vec.randn(150), y ),
       Index(0 until 150: _*),

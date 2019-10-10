@@ -1,12 +1,13 @@
 package stat.util
 
 import org.saddle._
+import org.saddle.linalg._
 import stat._
 
 object saddle {
 
   def normalize[R: ST: ORD, C: ST: ORD](f: Frame[R, C, Double]) =
-    f.mapVec(v => v / v.stdev)
+    f.mapVec(v => v / v.sampleStandardDeviation)
 
   def normalizeWith[R: ST: ORD, C: ST: ORD](f: Frame[R, C, Double],
                                             s: Series[C, Double]) = {
@@ -21,7 +22,7 @@ object saddle {
                        forceCategorical: Set[String] = Set[String](),
                        naString: Set[String] = Set("na", "n/a", ""),
                        normalize: Boolean = false) = {
-    import org.saddle.io._
+    import org.saddle.csv._
     val categorical = nonNumericColumns(f, naString, forceCategorical)
 
     val trainingNumeric = missing(
@@ -36,7 +37,7 @@ object saddle {
 
     val normed =
       if (normalize)
-        trainingNumeric.mapVec(v => v / v.stdev)
+        trainingNumeric.mapVec(v => v / v.sampleStandardDeviation)
       else trainingNumeric
     (categorical, normed)
 
@@ -123,7 +124,7 @@ object saddle {
     }
 
   def meanImpute(data: Vec[Double]): Vec[Double] = {
-    val mean = data.mean
+    val mean = data.mean2
     data.fillNA(_ => mean)
   }
 

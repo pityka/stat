@@ -19,12 +19,12 @@ class BLRSuite extends FunSuite {
     val rnd = new jdistlib.rng.RandomWELL44497b
     val X = {
       val N = 30
-      Mat(vec.ones(N), jdistlib.Normal.random(N,10,10,rnd))
+      Mat(vec.ones(N), jdistlib.Normal.random(N,10,10,rnd).toVec)
     }
 
     val X2 = {
       val N = 1
-      Mat(vec.ones(N), jdistlib.Normal.random(N,10,10,rnd))
+      Mat(vec.ones(N), jdistlib.Normal.random(N,10,10,rnd).toVec)
     }
     val lambda = 1.0
     val V0 = mat.diag(vec.ones(2)*1/lambda)
@@ -54,8 +54,8 @@ class BLRSuite extends FunSuite {
 
       // take K samples from the above posterior distribution
       val K = 1000
-      val posteriorW1 = (jdistlib.T.random(K,dof, rnd):Vec[Double]) * math.sqrt(posteriorShape.raw(0,0)) + posteriorMean.raw(0)
-      val posteriorW2 = (jdistlib.T.random(K,dof, rnd):Vec[Double]) * math.sqrt(posteriorShape.raw(1,1)) + posteriorMean.raw(1)
+      val posteriorW1 = (jdistlib.T.random(K,dof, rnd).toVec:Vec[Double]) * math.sqrt(posteriorShape.raw(0,0)) + posteriorMean.raw(0)
+      val posteriorW2 = (jdistlib.T.random(K,dof, rnd).toVec:Vec[Double]) * math.sqrt(posteriorShape.raw(1,1)) + posteriorMean.raw(1)
 
       // rank statistic to compute inflation
       // these are to be uniformly distributed on [0,1)
@@ -68,7 +68,7 @@ class BLRSuite extends FunSuite {
       val sampleFromPosteriorPredictive = {
         val mean = predictive.mean
         val shape = predictive.shape
-        (jdistlib.T.random(K,dof, rnd):Vec[Double]) * math.sqrt(shape.raw(0,0)) + mean.raw(0)
+        (jdistlib.T.random(K,dof, rnd).toVec:Vec[Double]) * math.sqrt(shape.raw(0,0)) + mean.raw(0)
       }
       val ppdSt = sampleFromPosteriorPredictive.countif(_ < priorYSample)
       

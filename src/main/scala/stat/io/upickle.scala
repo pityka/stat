@@ -19,7 +19,7 @@ object upicklers {
   implicit def index2Writer[T: ReadWriter: ST: ORD] = 
     upickle.default.readwriter[Seq[T]].bimap[Index[T]](
       _.toSeq, 
-      Vec(_:_*)
+      _.toIndex
     )
 
   implicit def series2Writer[T: ReadWriter, X: ReadWriter](

@@ -3,7 +3,6 @@ package stat.sgd
 import org.saddle._
 import org.scalatest._
 import stat._
-import org.saddle.io._
 import org.saddle.linalg._
 
 class DebugSuite extends FunSpec with Matchers {

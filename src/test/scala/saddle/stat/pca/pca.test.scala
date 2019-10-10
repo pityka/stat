@@ -8,16 +8,16 @@ import org.nspl.awtrenderer._
 
 class PCASuite extends FunSuite {
   test("short") {
-    val a: Vec[Double] = array.randDouble(50)
+    val a: Vec[Double] = array.randDouble(50).toVec
     val b: Vec[Double] = a + 2d
-    val c: Vec[Double] = (array.randDouble(50): Vec[Double]) * 100d
+    val c: Vec[Double] = (array.randDouble(50).toVec: Vec[Double]) * 100d
     val data = Frame(
       Mat(a, b, c),
       Index((0 until 50).map(_.toString): _*),
       Index("a", "b", "c")
     )
 
-    val covM = data.demeaned.toMat mmt data.demeaned.toMat
+    val covM = data.mapVec(_.demeaned).toMat.outerM
     val cov = Frame(covM, data.rowIx, data.rowIx)
     assert(
       fromData(data, 1).eigenvalues

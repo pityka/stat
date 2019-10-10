@@ -92,7 +92,7 @@ trait Updater[I <: ItState] {
 object SgdResultAggregator extends StrictLogging {
 
   def aggregateVecs(s: Seq[Vec[Double]]) = {
-    Mat(s: _*).rows.map(x => x.mean).toVec
+    Mat(s: _*).rows.map(_.mean2).toVec
   }
 
   def make[E, P] =
@@ -106,7 +106,7 @@ object SgdResultAggregator extends StrictLogging {
                                       s.head.result.model,
                                       s.head.result.kernel,
                                       s.head.result.normalizer),
-                            s.map(_.trainingErrorPerSample).toVec.mean,
+                            s.map(_.trainingErrorPerSample).toVec.mean2,
                             None)
       }
     }

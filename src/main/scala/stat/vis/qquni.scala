@@ -5,6 +5,7 @@ import org.nspl.data._
 import org.nspl.awtrenderer._
 import org.nspl.saddle._
 import org.saddle._
+import org.saddle.stats._
 
 object QQUniform {
 

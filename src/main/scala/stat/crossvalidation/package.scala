@@ -1,6 +1,7 @@
 package stat
 
 import org.saddle._
+import org.saddle.linalg._
 import scala.util.Random
 import stat.sgd.EvaluateFit
 import slogging.StrictLogging
@@ -114,7 +115,7 @@ package object crossvalidation extends StrictLogging {
         r dot r
       }
       val totalSS = {
-        val r = y - y.mean
+        val r = y.demeaned
         r dot r
       }
       1.0 - residualSS / totalSS

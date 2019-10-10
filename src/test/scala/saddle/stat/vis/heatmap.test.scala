@@ -9,14 +9,14 @@ import org.nspl._
 
 class HeatmapSuite extends FunSuite {
   test("short") {
-    val a: Vec[Double] = array.randDouble(50)
+    val a: Vec[Double] = array.randDouble(50).toVec
     val b: Vec[Double] = a + 2d
-    val c: Vec[Double] = (array.randDouble(50): Vec[Double]) * 100d
+    val c: Vec[Double] = (array.randDouble(50).toVec: Vec[Double]) * 100d
     val data = Frame(
       Mat(a, b, c),
       Index((0 until 50).map(_.toString): _*),
       Index("a", "b", "c")
-    ).demeaned
+    ).mapVec(_.demeaned)
     val (heatmap, pairwise, distmat) =
       Heatmap.fromColumns(data.T, colormap = LogHeatMapColors())
     show(group(heatmap, pairwise, TableLayout(2)))

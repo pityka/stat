@@ -9,7 +9,7 @@ import org.nspl._
 
 class QQNormSute extends FunSuite {
   test("short") {
-    val d = array.randNormal(1000)
+    val d = array.randNormal(1000).toVec
     show(QQNorm(d))
   }
 

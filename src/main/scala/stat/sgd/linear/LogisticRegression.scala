@@ -53,7 +53,7 @@ object LogisticRegression
 
   def jacobi[T: MatOps](b: Vec[Double], batch: Batch[T]): Vec[Double] = {
     val pi: Vec[Double] = getPi(b, batch)
-    (batch.x tmv (batch.y - pi).col(0))
+    (batch.x tmv (batch.y - pi))
   }
 
   def hessian1D[T: MatOps](p: Vec[Double],
@@ -107,7 +107,7 @@ object LogisticRegression
 
   def eval[T: MatOps](estimates: Vec[Double], batch: Batch[T]) = {
     val p = predict(estimates, batch.x).map(x => if (x > 0.5) 1.0 else 0.0)
-    val accuracy = p.zipMap(batch.y)(_ == _).map(x => if (x) 1.0 else 0.0).mean
+    val accuracy = p.zipMap(batch.y)(_ == _).map(x => if (x) 1.0 else 0.0).mean2
 
     val tp = p
       .zipMap(batch.y)((p, y) => p == 1d && y == 1d)

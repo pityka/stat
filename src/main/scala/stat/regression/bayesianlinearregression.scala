@@ -52,9 +52,9 @@ def bayesianLinearRegression(
       new PosteriorPredictive {
         val mean = m
         val covariances = v * bN/aN * (dof/(dof-2))
-        val variances = covariances.diag.col(0)
+        val variances = covariances.diag
         val shape = v * bN/aN 
-        def inverseCDF(p: Double) = mean.zipMap((v * bN/aN).diag.col(0)){ case (m1,v1) =>
+        def inverseCDF(p: Double) = mean.zipMap((v * bN/aN).diag){ case (m1,v1) =>
           val standardQuantile = jdistlib.T.quantile(p,dof,true,false)
           standardQuantile*math.sqrt(v1) + m1
         }

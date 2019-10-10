@@ -40,7 +40,7 @@ object SparseVecOps extends VecOps[SVec] {
   }
 
   def fromElems(s: Array[Double]): SVec =
-    SVec(Series((s: Vec[Double]), index.IndexIntRange(s.size)), s.size)
+    SVec(Series(s.toVec, index.IndexIntRange(s.size)), s.size)
 
   def euclid(t: T, t2: Vec[Double], t2inner: Double): Double =
     stat.kmeans.euclid(t, t2, t2inner)
@@ -56,7 +56,7 @@ object SparseVecOps extends VecOps[SVec] {
       ar(i) = vv * t2.raw(iv)
       i += 1
     }
-    SVec(Series((ar: Vec[Double]), idx), t.length)
+    SVec(Series(ar.toVec, idx), t.length)
   }
 
   def raw(t: T, i: Int) =
@@ -98,7 +98,7 @@ object SparseMatOps extends MatOps[SMat] {
       j = 0
       i += 1
     }
-    sums
+    sums.toVec
   }
 
   def innerM(t: T): Mat[Double] = {
