@@ -6,11 +6,9 @@ organization := "io.github.pityka"
 
 version := "0.0.10-SNAPSHOT"
 
-resolvers += "bintray/denisrosset" at "https://dl.bintray.com/denisrosset/maven"
-
 libraryDependencies ++= Seq(
-  "io.github.pityka" %% "saddle-linalg" % "1.3.4+80-eb41d457-SNAPSHOT",
-  "io.github.pityka" %% "saddle-stats" % "1.3.4+80-eb41d457-SNAPSHOT",
+  "io.github.pityka" %% "saddle-linalg" % "2.0.0-M3",
+  "io.github.pityka" %% "saddle-stats" % "2.0.0-M3",
   "io.github.pityka" % "hierarchical-clustering-fork" % "1.0-5",
   "io.github.pityka" %% "nspl-saddle" % "0.0.22-SNAPSHOT",
   "io.github.pityka" %% "nspl-awt" % "0.0.22-SNAPSHOT" % "test",
